@@ -70,7 +70,8 @@ async def login_user(request: Request, payload: UserLogin, db: Session = Depends
 @user_router.post("/token", response_model=TokenResponse, status_code=status.HTTP_200_OK)
 @limiter.limit("5/minute")
 def login_for_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == form_data.username).first()
+    email = form_data.username.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
 
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
@@ -106,6 +107,7 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 @user_router.post("/resend-verification", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
 def resend_verification(request: Request, background_tasks: BackgroundTasks, email: str = Form(...), db: Session = Depends(get_db)):
+    email = email.strip().lower()
     user = db.query(User).filter(User.email == email).first()
 
     if user and not user.email_verified:

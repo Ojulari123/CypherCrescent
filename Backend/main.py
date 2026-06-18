@@ -7,6 +7,7 @@ from Routes.user import user_router
 from Routes.holding import holding_router
 from Routes.market import market_router
 from Routes.dashboard import dashboard_router
+from Routes.watchlist import watchlist_router
 from Utils.rate_limit import limiter
 from Config.config import settings
 
@@ -43,3 +44,4 @@ app.include_router(user_router, prefix="/api/users", tags=["Users"])
 app.include_router(holding_router, prefix="/api/holdings", tags=["Holdings"])
 app.include_router(market_router, prefix="/api/market", tags=["Market"])
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(watchlist_router, prefix="/api/watchlist", tags=["Watchlist"])

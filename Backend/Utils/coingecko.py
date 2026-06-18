@@ -1,6 +1,8 @@
 import httpx
 from typing import List
 
+from fastapi import HTTPException, status
+
 from Config.config import settings
 from Utils.redis_cache import cached
 
@@ -51,3 +53,20 @@ def search_coins(query: str) -> list:
             return data.get("coins", [])
 
     return cached(key, settings.SEARCH_CACHE_TTL, fetch)
+
+
+def validate_coin_slug(coin_slug: str) -> None:
+    """Ensure coin_slug is a real CoinGecko coin id before it gets stored."""
+    try:
+        data = get_markets([coin_slug])
+    except httpx.HTTPError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not verify coin against market data, please try again",
+        )
+
+    if not any(c.get("id") == coin_slug for c in data):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"'{coin_slug}' is not a recognized coin. Use the id from market search.",
+        )

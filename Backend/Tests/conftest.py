@@ -12,16 +12,8 @@ from Routes.user import user_router
 from Routes.holding import holding_router
 from Routes.market import market_router
 from Routes.dashboard import dashboard_router
+from Routes.watchlist import watchlist_router
 from Utils.rate_limit import limiter
-
-test_engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestSession = sessionmaker(bind=test_engine, autoflush=False, autocommit=False)
-tables.engine = test_engine
-tables.Local_Session = TestSession
 
 os.environ.setdefault("NPGUSER", "test")
 os.environ.setdefault("NPGPASSWORD", "test")
@@ -37,6 +29,15 @@ os.environ.setdefault("EMAIL_FROM", "test@example.com")
 os.environ.setdefault("CLOUDINARY_CLOUD_NAME", "x")
 os.environ.setdefault("CLOUDINARY_API_KEY", "x")
 os.environ.setdefault("CLOUDINARY_API_SECRET", "x")
+
+test_engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestSession = sessionmaker(bind=test_engine, autoflush=False, autocommit=False)
+tables.engine = test_engine
+tables.Local_Session = TestSession
 
 limiter.enabled = False  # Disable rate limits during tests
 
@@ -76,6 +77,7 @@ def client():
     app.include_router(holding_router, prefix="/api/holdings")
     app.include_router(market_router, prefix="/api/market")
     app.include_router(dashboard_router, prefix="/api/dashboard")
+    app.include_router(watchlist_router, prefix="/api/watchlist")
 
     with TestClient(app) as c:
         yield c

@@ -1,4 +1,6 @@
 from decimal import Decimal
+from unittest.mock import patch
+import pytest
 from conftest import SAMPLE_USER, auth, register
 
 SAMPLE_HOLDING = {
@@ -6,6 +8,14 @@ SAMPLE_HOLDING = {
     "quantity": "0.5",
     "buy_price": "65000",
 }
+
+
+@pytest.fixture(autouse=True)
+def _stub_coin_validation():
+    # Treat every requested slug as a real coin so add-holding tests don't hit
+    # the CoinGecko network; the unrecognized-coin path is tested explicitly.
+    with patch("Utils.coingecko.get_markets", side_effect=lambda ids: [{"id": c} for c in ids]):
+        yield
 
 OTHER_USER = {
     "email": "bob@example.com",
@@ -41,6 +51,16 @@ class TestAddHolding:
         )
         assert r.status_code == 201
         assert r.json()["coin_slug"] == "bitcoin"
+
+    def test_add_unrecognized_coin_400(self, client):
+        body = register(client)
+        with patch("Utils.coingecko.get_markets", return_value=[]):
+            r = client.post(
+                "/api/holdings",
+                json={**SAMPLE_HOLDING, "coin_slug": "notarealcoin"},
+                headers=auth(body["access_token"]),
+            )
+        assert r.status_code == 400
 
     def test_add_duplicate_coin_409(self, client):
         body = register(client)

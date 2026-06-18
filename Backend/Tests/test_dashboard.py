@@ -26,11 +26,14 @@ SAMPLE_MARKETS = [
 
 
 def add_holding(client, token, coin_slug, quantity, buy_price):
-    r = client.post(
-        "/api/holdings",
-        json={"coin_slug": coin_slug, "quantity": str(quantity), "buy_price": str(buy_price)},
-        headers=auth(token),
-    )
+    # Dashboard tests seed holdings (incl. coins with no market data) directly;
+    # coin-slug validation is exercised in test_holding, so bypass it here.
+    with patch("Routes.holding.validate_coin_slug", return_value=None):
+        r = client.post(
+            "/api/holdings",
+            json={"coin_slug": coin_slug, "quantity": str(quantity), "buy_price": str(buy_price)},
+            headers=auth(token),
+        )
     assert r.status_code == 201, r.text
     return r.json()
 

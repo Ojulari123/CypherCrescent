@@ -2,6 +2,9 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from typing import Optional
 
+def normalize_email(v):
+    return v.strip().lower() if v else v
+
 # Request
 class UserCreate(BaseModel):
     email: EmailStr
@@ -9,6 +12,8 @@ class UserCreate(BaseModel):
     first_name: str
     last_name: str
     display_name: Optional[str] = None
+
+    _normalize_email = field_validator("email")(normalize_email)
 
     @field_validator("password")
     @classmethod
@@ -23,9 +28,13 @@ class UserUpdate(BaseModel):
     display_name: Optional[str] = None
     email: Optional[EmailStr] = None
 
+    _normalize_email = field_validator("email")(normalize_email)
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+    _normalize_email = field_validator("email")(normalize_email)
 
 class PasswordChange(BaseModel):
     current_password: str
@@ -40,6 +49,8 @@ class PasswordChange(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
+    _normalize_email = field_validator("email")(normalize_email)
 
 class DeleteAccount(BaseModel):
     password: str
