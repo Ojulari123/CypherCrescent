@@ -15,6 +15,12 @@ class TestAuth:
         register(client)
         patch_external_io["send_verification"].assert_called_once()
 
+    def test_register_without_display_name_succeeds(self, client):
+        payload = {k: v for k, v in SAMPLE_USER.items() if k != "display_name"}
+        r = client.post("/api/users/register", json=payload)
+        assert r.status_code == 201
+        assert r.json()["user"]["display_name"] is None
+
     def test_register_duplicate_email_409(self, client):
         register(client)
         r = client.post("/api/users/register", json=SAMPLE_USER)
@@ -141,6 +147,15 @@ class TestPasswordChange:
         )
         assert r.status_code == 400
 
+    def test_change_password_same_as_current_400(self, client):
+        body = register(client)
+        r = client.put(
+            "/api/users/me/password",
+            json={"current_password": SAMPLE_USER["password"], "new_password": SAMPLE_USER["password"]},
+            headers=auth(body["access_token"]),
+        )
+        assert r.status_code == 400
+
 # Logout
 class TestLogout:
     def test_logout_invalidates_token(self, client):
@@ -182,16 +197,27 @@ class TestEmailFlows:
         assert r.status_code == 200
         patch_external_io["send_verification"].assert_not_called()
 
+    def test_resend_verification_already_verified_does_not_leak(self, client, patch_external_io):
+        register(client)
+        token = create_email_verification_token(SAMPLE_USER["email"])
+        client.get("/api/users/verify-email", params={"token": token})
+
+        patch_external_io["send_verification"].reset_mock()
+        r = client.post("/api/users/resend-verification", data={"email": SAMPLE_USER["email"]})
+        assert r.status_code == 200  # same response as unknown/unverified — no enumeration
+        patch_external_io["send_verification"].assert_not_called()
+
+
     def test_forgot_password_known_email_triggers_reset(self, client, patch_external_io):
         register(client)
         r = client.post("/api/users/forgot-password", json={"email": SAMPLE_USER["email"]})
         assert r.status_code == 200
-        patch_external_io["send_password_reset_email"].assert_called_once()
+        patch_external_io["send_password_reset"].assert_called_once()
 
     def test_forgot_password_unknown_email_silent_200(self, client, patch_external_io):
         r = client.post("/api/users/forgot-password", json={"email": "nobody@example.com"})
         assert r.status_code == 200
-        patch_external_io["send_password_reset_email"].assert_not_called()
+        patch_external_io["send_password_reset"].assert_not_called()
 
     def test_reset_password_with_valid_token_updates_password(self, client):
         register(client)
@@ -221,6 +247,15 @@ class TestEmailFlows:
         r = client.post(
             "/api/users/reset-password",
             json={"token": wrong, "new_password": "FreshPass123!"},
+        )
+        assert r.status_code == 400
+
+    def test_reset_password_same_as_current_400(self, client):
+        register(client)
+        token = create_password_reset_token(SAMPLE_USER["email"])
+        r = client.post(
+            "/api/users/reset-password",
+            json={"token": token, "new_password": SAMPLE_USER["password"]},
         )
         assert r.status_code == 400
 

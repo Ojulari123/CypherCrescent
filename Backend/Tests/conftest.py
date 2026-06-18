@@ -86,7 +86,7 @@ def client():
 @pytest.fixture(autouse=True)
 def patch_external_io():
     with patch("Routes.user.send_verification") as mock_send_v, \
-         patch("Routes.user.send_password_reset_email") as mock_send_pr, \
+         patch("Routes.user.send_password_reset") as mock_send_pr, \
          patch("Routes.user.upload_image_to_cloudinary") as mock_upload, \
          patch("Routes.user.delete_image_from_cloudinary") as mock_delete, \
          patch("Utils.user.delete_image_from_cloudinary") as mock_cascade_delete:
@@ -95,7 +95,7 @@ def patch_external_io():
         )
         yield {
             "send_verification": mock_send_v,
-            "send_password_reset_email": mock_send_pr,
+            "send_password_reset": mock_send_pr,
             "upload": mock_upload,
             "delete": mock_delete,
             "cascade_delete": mock_cascade_delete,

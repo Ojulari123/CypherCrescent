@@ -113,6 +113,24 @@ class TestDashboard:
         assert Decimal(h["cost_basis"]) == Decimal("100")
         assert data["top_performer"] is None
 
+    def test_pl_percent_ignores_holdings_without_market_data(self, client):
+        body = register(client)
+        # BTC has market data: cost 30000, value 35000 → pl 5000 (+16.67%)
+        # unknown coin: cost 50000, no market data
+        add_holding(client, body["access_token"], "bitcoin", "0.5", "60000")
+        add_holding(client, body["access_token"], "shitcoin69", "50000", "1")
+
+        markets = [m for m in SAMPLE_MARKETS if m["id"] == "bitcoin"]
+        markets[0]["current_price"] = 70000
+        with patch("Routes.dashboard.get_markets", return_value=markets):
+            r = client.get("/api/dashboard", headers=auth(body["access_token"]))
+
+        data = r.json()
+        # Percent must be 5000 / 30000 * 100 = 16.67, NOT 5000 / 80000
+        assert Decimal(data["total_pl_percent"]).quantize(Decimal("0.01")) == Decimal("16.67")
+        # total_cost still reflects everything invested
+        assert Decimal(data["total_cost"]) == Decimal("80000")
+
     def test_unauthenticated_401(self, client):
         r = client.get("/api/dashboard")
         assert r.status_code == 401

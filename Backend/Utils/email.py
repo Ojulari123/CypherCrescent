@@ -3,7 +3,7 @@ import smtplib
 from email.message import EmailMessage
 from Config.config import settings
 from Utils.email_token import create_email_verification_token
-from tables import User
+from Utils.security import create_password_reset_token
 
 logger = logging.getLogger(__name__)
 
@@ -161,9 +161,19 @@ def send_password_reset_email(to_email: str, first_name: str, token: str) -> Non
     )
 
 
-def send_verification(user: User) -> None:
+def send_verification(email: str, first_name: str) -> None:
+    """Safe, background-friendly: builds the token and sends, swallowing/logging any SMTP failure."""
     try:
-        token = create_email_verification_token(user.email)
-        send_verification_email(user.email, user.first_name, token)
+        token = create_email_verification_token(email)
+        send_verification_email(email, first_name, token)
     except Exception as e:
-        logger.exception("Failed to send verification email to %s: %s", user.email, e)
+        logger.exception("Failed to send verification email to %s: %s", email, e)
+
+
+def send_password_reset(email: str, first_name: str) -> None:
+    """Safe, background-friendly: builds the token and sends, swallowing/logging any SMTP failure."""
+    try:
+        token = create_password_reset_token(email)
+        send_password_reset_email(email, first_name, token)
+    except Exception as e:
+        logger.exception("Failed to send reset email to %s: %s", email, e)

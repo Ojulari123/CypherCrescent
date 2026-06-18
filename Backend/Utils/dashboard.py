@@ -55,7 +55,10 @@ def build_dashboard(holdings, market_data, market_data_available=True):
     if with_market:
         total_value = sum((e["value"] for e in with_market), ZERO)
         total_pl = sum((e["pl"] for e in with_market), ZERO)
-        total_pl_percent = (total_pl / total_cost * 100) if total_cost else ZERO
+        # Percent must use the cost of only the holdings we have prices for,
+        # otherwise coins without market data dilute the result.
+        cost_with_market = sum((e["cost_basis"] for e in with_market), ZERO)
+        total_pl_percent = (total_pl / cost_with_market * 100) if cost_with_market else ZERO
     else:
         total_value = ZERO
         total_pl = ZERO

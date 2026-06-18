@@ -1,12 +1,13 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Form, Request, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Request, File, UploadFile, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from tables import *
 from Schemas.userSchema import *
 from Utils.security import *
 from Utils.email_token import *
-from Utils.email import send_verification_email, send_password_reset_email, send_verification
+from Utils.email import send_verification, send_password_reset
 from Utils.cloudinary import upload_image_to_cloudinary, delete_image_from_cloudinary, ALLOWED_IMAGE_TYPES
 from Utils.user import cascade_delete_user
 from Utils.rate_limit import limiter
@@ -18,7 +19,7 @@ user_router = APIRouter()
 # Create User
 @user_router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-def register_users(request: Request, payload: UserCreate, db: Session = Depends(get_db)):
+def register_users(request: Request, payload: UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     validate_password(payload.password)
 
     existing = db.query(User).filter(User.email == payload.email).first()
@@ -37,11 +38,14 @@ def register_users(request: Request, payload: UserCreate, db: Session = Depends(
         db.add(user)
         db.commit()
         db.refresh(user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists")
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to create account")
 
-    send_verification(user)
+    background_tasks.add_task(send_verification, user.email, user.first_name)
 
     access_token = create_access_token({"user_id": user.id, "tv": user.token_version})
 
@@ -62,9 +66,10 @@ async def login_user(request: Request, payload: UserLogin, db: Session = Depends
     token = create_access_token({"user_id": user.id, "tv": user.token_version})
     return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
 
-# OAuth2 token (for Swagger's Authorize button)
+# OAuth2 token (Swagger)
 @user_router.post("/token", response_model=TokenResponse, status_code=status.HTTP_200_OK)
-def login_for_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login_for_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
 
     if not user or not verify_password(form_data.password, user.password_hash):
@@ -100,29 +105,21 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 # Re-send verification
 @user_router.post("/resend-verification", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
-def resend_verification(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
+def resend_verification(request: Request, background_tasks: BackgroundTasks, email: str = Form(...), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
 
-    if not user:
-        return {"message": "A verification link has been sent."}
+    if user and not user.email_verified:
+        background_tasks.add_task(send_verification, user.email, user.first_name)
 
-    if user.email_verified:
-        raise HTTPException(status_code=400, detail="Email already verified")
-
-    send_verification(user)
-    return {"message": "A verification link has been sent."}
+    return {"message": "If an unverified account exists with that email, a verification link has been sent."}
 
 # Forgot Password
 @user_router.post("/forgot-password", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
-def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+def forgot_password(request: Request, payload: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if user:
-        try:
-            reset_token = create_password_reset_token(user.email)
-            send_password_reset_email(user.email, user.first_name, reset_token)
-        except Exception as e:
-            logger.exception("Failed to send reset email to %s: %s", user.email, e)
+        background_tasks.add_task(send_password_reset, user.email, user.first_name)
 
     return {"message": "If an account exists with that email, a reset link has been sent."}
 
@@ -138,6 +135,9 @@ def reset_password(request: Request, payload: ResetPasswordRequest, db: Session 
 
     validate_password(payload.new_password)
 
+    if verify_password(payload.new_password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must be different from your current password")
+
     user.password_hash = hash_password(payload.new_password)
     user.token_version = (user.token_version or 0) + 1
     db.commit()
@@ -151,14 +151,14 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 # Update current user profile
 @user_router.patch("/me", response_model=UserResponse)
-def update_me(payload: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_me(payload: UserUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if payload.email and payload.email != current_user.email:
         existing = db.query(User).filter(User.email == payload.email).first()
         if existing:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists")
         current_user.email = payload.email
         current_user.email_verified = False
-        send_verification(current_user)
+        background_tasks.add_task(send_verification, payload.email, current_user.first_name)
 
     if payload.first_name:
         current_user.first_name = payload.first_name
@@ -176,6 +176,9 @@ def change_password(payload: PasswordChange, db: Session = Depends(get_db),curre
     if not verify_password(payload.current_password, current_user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect")
 
+    if payload.new_password == payload.current_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must be different from your current password")
+
     validate_password(payload.new_password)
 
     current_user.password_hash = hash_password(payload.new_password)
@@ -192,12 +195,14 @@ async def upload_profile_photo(file: UploadFile = File(...), db: Session = Depen
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Invalid image type. Allowed: JPEG, PNG, WebP")
 
-    if current_user.profile_photo_url:
-        delete_image_from_cloudinary(current_user.profile_photo_url)
+    old_photo_url = current_user.profile_photo_url
 
     image_url = upload_image_to_cloudinary(file, folder=f"userDP/{current_user.id}")
     current_user.profile_photo_url = image_url
     db.commit()
+
+    if old_photo_url:
+        delete_image_from_cloudinary(old_photo_url)
 
     return {"profile_photo_url": image_url}
 

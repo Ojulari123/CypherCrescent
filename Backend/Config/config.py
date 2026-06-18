@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     COINGECKO_API_KEY: str
     COINGECKO_BASE_URL: str = "https://api.coingecko.com/api/v3"
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str
     MARKET_CACHE_TTL: int = 60
     SEARCH_CACHE_TTL: int = 600
 

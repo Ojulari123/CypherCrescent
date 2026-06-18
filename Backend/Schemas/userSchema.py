@@ -16,7 +16,7 @@ class UserCreate(BaseModel):
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
         return v
-    
+
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -61,7 +61,7 @@ class UserResponse(BaseModel):
     email: str
     first_name: str
     last_name: str
-    display_name: str
+    display_name: Optional[str] = None
     email_verified: bool
     profile_photo_url: Optional[str] = None
     created_at: datetime
