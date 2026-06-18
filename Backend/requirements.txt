@@ -14,3 +14,4 @@ email_validator
 cloudinary
 slowapi
 redis
+coingecko-sdk
