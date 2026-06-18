@@ -1,6 +1,5 @@
-import httpx
 from Schemas.watchlistSchema import WatchlistItemWithMarket
-from Utils.coingecko import get_markets
+from Utils.coingecko import get_markets, MarketDataError
 from Utils.dashboard import to_decimal
 
 # Combine one Watchlist row with its CoinGecko market data.
@@ -26,7 +25,7 @@ def build_watchlist_response(items):
 
     try:
         market_data = get_markets([i.coin_slug for i in items])
-    except httpx.HTTPError:
+    except MarketDataError:
         market_data = []
 
     market_by_id = {m["id"]: m for m in market_data}

@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import computed_field
+from pydantic import computed_field, field_validator
 
 class Settings(BaseSettings):
     NPGUSER: str
@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     SMTP_HOST: str
     SMTP_PORT: int
@@ -26,13 +27,19 @@ class Settings(BaseSettings):
     CYPHER_CRESCENT_CLOUDINARY_API_SECRET: str
 
     COINGECKO_API_KEY: str
-    COINGECKO_BASE_URL: str
     REDIS_URL: str
     MARKET_CACHE_TTL: int = 60
     SEARCH_CACHE_TTL: int = 600
     CHART_CACHE_TTL: int = 300
 
     FRONTEND_URL: str = "http://localhost:3000"
+
+    @field_validator("JWT_SECRET")
+    @classmethod
+    def secret_must_be_strong(cls, v):
+        if len(v) < 32:
+            raise ValueError("JWT_SECRET must be set and at least 32 characters")
+        return v
 
     @computed_field
     @property

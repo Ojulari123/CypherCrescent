@@ -1,4 +1,4 @@
-import httpx
+from Utils.coingecko import MarketDataError
 from decimal import Decimal
 from unittest.mock import patch
 from conftest import auth, register
@@ -86,7 +86,7 @@ class TestDashboard:
         body = register(client)
         add_holding(client, body["access_token"], "bitcoin", "0.5", "60000")
 
-        with patch("Routes.dashboard.get_markets", side_effect=httpx.HTTPError("down")):
+        with patch("Routes.dashboard.get_markets", side_effect=MarketDataError("down")):
             r = client.get("/api/dashboard", headers=auth(body["access_token"]))
 
         assert r.status_code == 200

@@ -1,6 +1,7 @@
 from unittest.mock import patch
 import pytest
 from conftest import auth, register
+from Utils.coingecko import MarketDataError
 
 OTHER_USER = {
     "email": "bob@example.com",
@@ -99,11 +100,10 @@ class TestListWatchlist:
         assert item["current_price"] == "70000"
 
     def test_list_degrades_when_coingecko_down(self, client):
-        import httpx
         body = register(client)
         add_to_watchlist(client, body["access_token"], "bitcoin")
 
-        with patch("Utils.watchlist.get_markets", side_effect=httpx.HTTPError("down")):
+        with patch("Utils.watchlist.get_markets", side_effect=MarketDataError("down")):
             r = client.get("/api/watchlist", headers=auth(body["access_token"]))
 
         assert r.status_code == 200

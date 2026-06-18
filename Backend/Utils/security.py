@@ -85,8 +85,29 @@ def decode_twofa_challenge_token(token: str) -> dict:
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+# Create a long-lived refresh token (one link in a rotating session: sid + jti)
+def create_refresh_token(user_id: int, token_version: int, sid: str, jti: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    return jwt.encode(
+        {"user_id": user_id, "tv": token_version, "type": "refresh", "sid": sid, "jti": jti, "exp": expire},
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+# Decode a refresh token, returning its claims
+def decode_refresh_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        if payload.get("type") != "refresh" or payload.get("user_id") is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        return payload
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token has expired. Please log in again.")
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
 # Decode access token
 def decode_access_token(token: str) -> dict:
@@ -123,6 +144,9 @@ def check_token_version(payload: dict, user) -> None:
 # Get current user
 def get_current_user(token: str = Depends(user_oauth2), db: Session = Depends(get_db)):
     payload = decode_access_token(token)
+
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
 
     user_id = payload.get("user_id")
 

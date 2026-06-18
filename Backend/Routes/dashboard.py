@@ -1,10 +1,9 @@
-import httpx
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from tables import get_db, User, Holding
 from Schemas.marketSchema import DashboardResponse
 from Utils.security import get_current_user
-from Utils.coingecko import get_markets
+from Utils.coingecko import get_markets, MarketDataError
 from Utils.dashboard import build_dashboard
 
 dashboard_router = APIRouter()
@@ -25,7 +24,7 @@ def get_dashboard(db: Session = Depends(get_db), current_user: User = Depends(ge
     market_data_available = True
     try:
         market_data = get_markets(coin_ids)
-    except httpx.HTTPError:
+    except MarketDataError:
         market_data = []
         market_data_available = False
 

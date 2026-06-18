@@ -20,7 +20,7 @@ os.environ.setdefault("NPGPASSWORD", "test")
 os.environ.setdefault("NPGDB", "test")
 os.environ.setdefault("NPGHOST", "localhost")
 os.environ.setdefault("NPGPORT", "5432")
-os.environ.setdefault("JWT_SECRET", "test-secret-please-change")
+os.environ.setdefault("JWT_SECRET", "test-secret-do-not-use-in-prod-1234567890")
 os.environ.setdefault("SMTP_HOST", "smtp.test")
 os.environ.setdefault("SMTP_PORT", "587")
 os.environ.setdefault("SMTP_USER", "test@example.com")
@@ -102,8 +102,9 @@ class FakeRedis:
         return 600 if key in self.store else -2
 
 @pytest.fixture(autouse=True)
-def fake_otp_store():
-    with patch("Utils.two_factor.redis_client", FakeRedis()):
+def fake_redis():
+    fake = FakeRedis()
+    with patch("Utils.two_factor.redis_client", fake), patch("Utils.refresh_session.redis_client", fake):
         yield
 
 # Stub out SMTP and Cloudinary so tests don't touch the network.

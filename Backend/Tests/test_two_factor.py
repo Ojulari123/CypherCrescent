@@ -108,6 +108,17 @@ class TestLogin2FA:
         r = client.post("/api/users/2fa/verify", json={"challenge_token": "not-a-jwt", "code": "123456"})
         assert r.status_code == 400
 
+    def test_challenge_token_cannot_be_used_as_access_token(self, client, patch_external_io):
+        # The post-password challenge token must NOT grant access without the code.
+        body = register(client)
+        enable_2fa(client, body["access_token"], patch_external_io)
+        r = client.post(
+            "/api/users/login",
+            json={"email": SAMPLE_USER["email"], "password": SAMPLE_USER["password"]},
+        )
+        challenge = r.json()["challenge_token"]
+        assert client.get("/api/users/me", headers=auth(challenge)).status_code == 401
+
     def test_token_endpoint_rejected_when_2fa_enabled_403(self, client, patch_external_io):
         body = register(client)
         enable_2fa(client, body["access_token"], patch_external_io)

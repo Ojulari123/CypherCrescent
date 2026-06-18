@@ -1,4 +1,4 @@
-import httpx
+from Utils.coingecko import MarketDataError
 from unittest.mock import patch
 from conftest import auth, register
 
@@ -58,7 +58,7 @@ class TestMarketCoins:
 
     def test_coingecko_down_returns_502(self, client):
         body = register(client)
-        with patch("Routes.market.get_markets", side_effect=httpx.HTTPError("down")):
+        with patch("Routes.market.get_markets", side_effect=MarketDataError("down")):
             r = client.get("/api/market/coins?ids=bitcoin", headers=auth(body["access_token"]))
         assert r.status_code == 502
 
@@ -84,7 +84,7 @@ class TestMarketSearch:
 
     def test_coingecko_down_returns_502(self, client):
         body = register(client)
-        with patch("Routes.market.search_coins", side_effect=httpx.HTTPError("down")):
+        with patch("Routes.market.search_coins", side_effect=MarketDataError("down")):
             r = client.get("/api/market/search?q=bitcoin", headers=auth(body["access_token"]))
         assert r.status_code == 502
 
@@ -150,7 +150,7 @@ class TestMarketChart:
     def test_coingecko_down_returns_502(self, client):
         body = register(client)
         with patch("Routes.market.validate_coin_slug", return_value=None), \
-             patch("Routes.market.get_market_chart", side_effect=httpx.HTTPError("down")):
+             patch("Routes.market.get_market_chart", side_effect=MarketDataError("down")):
             r = client.get("/api/market/coins/bitcoin/chart", headers=auth(body["access_token"]))
         assert r.status_code == 502
 

@@ -3,12 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, File, Up
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from tables import get_db, User
+from tables import get_db, User, ActivityLog
 from Schemas.userSchema import *
 from Utils.security import *
 from Utils.email_token import *
 from Utils.email import send_verification, send_password_reset, send_two_factor_code
 from Utils.two_factor import create_code, verify_code
+from Utils.activity import record_activity
+from Utils.refresh_session import issue_refresh_token, rotate_refresh_token
 from Utils.cloudinary import upload_image_to_cloudinary, delete_image_from_cloudinary, ALLOWED_IMAGE_TYPES
 from Utils.user import cascade_delete_user
 from Utils.rate_limit import limiter
@@ -47,11 +49,14 @@ def register_users(request: Request, payload: UserCreate, background_tasks: Back
         raise HTTPException(status_code=500, detail="Failed to create account")
 
     background_tasks.add_task(send_verification, user.email, user.first_name)
+    record_activity(db, user.id, "register", request)
 
     access_token = create_access_token({"user_id": user.id, "tv": user.token_version})
+    refresh = issue_refresh_token(user.id, user.token_version)
 
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh,
         user=UserResponse.model_validate(user),
     )
 
@@ -71,7 +76,9 @@ async def login_user(request: Request, payload: UserLogin, background_tasks: Bac
         return {"two_factor_required": True, "challenge_token": challenge}
 
     token = create_access_token({"user_id": user.id, "tv": user.token_version})
-    return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
+    refresh = issue_refresh_token(user.id, user.token_version)
+    record_activity(db, user.id, "login", request)
+    return TokenResponse(access_token=token, refresh_token=refresh, user=UserResponse.model_validate(user))
 
 # Complete a 2FA login (exchange the challenge token + emailed code for an access token)
 @user_router.post("/2fa/verify", response_model=TokenResponse, status_code=status.HTTP_200_OK)
@@ -87,7 +94,9 @@ def verify_two_factor_login(request: Request, payload: TwoFactorVerify, db: Sess
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired code")
 
     token = create_access_token({"user_id": user.id, "tv": user.token_version})
-    return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
+    refresh = issue_refresh_token(user.id, user.token_version)
+    record_activity(db, user.id, "login", request)
+    return TokenResponse(access_token=token, refresh_token=refresh, user=UserResponse.model_validate(user))
 
 # OAuth2 token (Swagger)
 @user_router.post("/token", response_model=TokenResponse, status_code=status.HTTP_200_OK)
@@ -103,13 +112,26 @@ def login_for_token(request: Request, form_data: OAuth2PasswordRequestForm = Dep
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="2FA is enabled. Log in via /api/users/login then /api/users/2fa/verify.")
 
     token = create_access_token({"user_id": user.id, "tv": user.token_version})
-    return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
+    refresh = issue_refresh_token(user.id, user.token_version)
+    return TokenResponse(access_token=token, refresh_token=refresh, user=UserResponse.model_validate(user))
 
-# Refresh Token
+# Exchange a refresh token for a fresh access + refresh token pair
 @user_router.post("/refresh", status_code=status.HTTP_200_OK)
-def refresh_token(current_user: User = Depends(get_current_user)):
-    token = create_access_token({"user_id": current_user.id, "tv": current_user.token_version})
-    return {"access_token": token, "token_type": "bearer"}
+@limiter.limit("20/minute")
+def refresh_token(request: Request, payload: RefreshRequest, db: Session = Depends(get_db)):
+    claims = decode_refresh_token(payload.refresh_token)
+
+    user = db.get(User, claims["user_id"])
+    if not user or claims.get("tv", 0) != (user.token_version or 0):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token is no longer valid. Please log in again.")
+
+    sid, jti = claims.get("sid"), claims.get("jti")
+    if not sid or not jti:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    refresh = rotate_refresh_token(user.id, user.token_version, sid, jti)
+    access = create_access_token({"user_id": user.id, "tv": user.token_version})
+    return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
 
 # Verify email
 @user_router.get("/verify-email", status_code=status.HTTP_200_OK)
@@ -127,7 +149,8 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     db.commit()
 
     access_token = create_access_token({"user_id": user.id, "tv": user.token_version})
-    return TokenResponse(access_token=access_token, user=UserResponse.model_validate(user))
+    refresh = issue_refresh_token(user.id, user.token_version)
+    return TokenResponse(access_token=access_token, refresh_token=refresh, user=UserResponse.model_validate(user))
 
 # Re-send verification
 @user_router.post("/resend-verification", status_code=status.HTTP_200_OK)
@@ -171,6 +194,7 @@ def reset_password(request: Request, payload: ResetPasswordRequest, db: Session 
     user.password_hash = hash_password(payload.new_password)
     user.token_version = (user.token_version or 0) + 1
     db.commit()
+    record_activity(db, user.id, "password_reset", request)
 
     return {"message": "Password has been reset successfully. You can now log in."}
 
@@ -181,14 +205,16 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 # Update current user profile
 @user_router.patch("/me", response_model=UserResponse)
-def update_me(payload: UserUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_me(request: Request, payload: UserUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    email_changed = False
     if payload.email and payload.email != current_user.email:
         existing = db.query(User).filter(User.email == payload.email).first()
         if existing:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists")
-        
+
         current_user.email = payload.email
         current_user.email_verified = False
+        email_changed = True
         background_tasks.add_task(send_verification, payload.email, current_user.first_name)
 
     if payload.first_name is not None:
@@ -199,6 +225,9 @@ def update_me(payload: UserUpdate, background_tasks: BackgroundTasks, db: Sessio
         current_user.display_name = payload.display_name
     db.commit()
     db.refresh(current_user)
+
+    if email_changed:
+        record_activity(db, current_user.id, "email_changed", request)
     return UserResponse.model_validate(current_user)
 
 # Change password (step 1): verify current/new, then email a confirmation code
@@ -218,7 +247,7 @@ def change_password(payload: PasswordChange, background_tasks: BackgroundTasks, 
 
 # Change password (step 2): confirm with the emailed code
 @user_router.put("/me/password/verify", response_model=TokenResponse, status_code=status.HTTP_200_OK)
-def verify_change_password(payload: PasswordChangeVerify, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def verify_change_password(request: Request, payload: PasswordChangeVerify, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not verify_code(current_user.id, "password_change", payload.code):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired code")
 
@@ -230,9 +259,11 @@ def verify_change_password(payload: PasswordChangeVerify, db: Session = Depends(
     current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
     db.refresh(current_user)
+    record_activity(db, current_user.id, "password_changed", request)
 
     token = create_access_token({"user_id": current_user.id, "tv": current_user.token_version})
-    return TokenResponse(access_token=token, user=UserResponse.model_validate(current_user))
+    refresh = issue_refresh_token(current_user.id, current_user.token_version)
+    return TokenResponse(access_token=token, refresh_token=refresh, user=UserResponse.model_validate(current_user))
 
 # Upload profile photo
 @user_router.post("/me/profile-photo", status_code=status.HTTP_200_OK)
@@ -286,7 +317,7 @@ def enable_two_factor(request: Request, background_tasks: BackgroundTasks, db: S
 
 # Enable 2FA (step 2): confirm with the emailed code
 @user_router.post("/2fa/enable/confirm", status_code=status.HTTP_200_OK)
-def confirm_enable_two_factor(payload: TwoFactorCode, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def confirm_enable_two_factor(request: Request, payload: TwoFactorCode, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.two_factor_enabled:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is already enabled")
     if not verify_code(current_user.id, "enable_2fa", payload.code):
@@ -294,6 +325,7 @@ def confirm_enable_two_factor(payload: TwoFactorCode, db: Session = Depends(get_
 
     current_user.two_factor_enabled = True
     db.commit()
+    record_activity(db, current_user.id, "2fa_enabled", request)
     return {"message": "Two-factor authentication is now enabled."}
 
 # Disable 2FA (step 1): email a confirmation code
@@ -309,7 +341,7 @@ def disable_two_factor(request: Request, background_tasks: BackgroundTasks, db: 
 
 # Disable 2FA (step 2): confirm with the emailed code
 @user_router.post("/2fa/disable/confirm", status_code=status.HTTP_200_OK)
-def confirm_disable_two_factor(payload: TwoFactorCode, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def confirm_disable_two_factor(request: Request, payload: TwoFactorCode, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user.two_factor_enabled:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is not enabled")
     if not verify_code(current_user.id, "disable_2fa", payload.code):
@@ -317,18 +349,27 @@ def confirm_disable_two_factor(payload: TwoFactorCode, db: Session = Depends(get
 
     current_user.two_factor_enabled = False
     db.commit()
+    record_activity(db, current_user.id, "2fa_disabled", request)
     return {"message": "Two-factor authentication is now disabled."}
+
+# View recent account activity
+@user_router.get("/activity", response_model=list[ActivityResponse], status_code=status.HTTP_200_OK)
+def list_activity(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    rows = db.query(ActivityLog).filter(ActivityLog.user_id == current_user.id).order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc()).limit(100).all()
+    return [ActivityResponse.model_validate(r) for r in rows]
 
 # Logout
 @user_router.post("/logout", status_code=status.HTTP_200_OK)
-def logout(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def logout(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
+    record_activity(db, current_user.id, "logout", request)
     return {"message": "Logged out successfully."}
 
-# Logout of all devices (invalidates every issued token)
+# Logout of all devices (Note: It invalidates every issued token)
 @user_router.post("/logout-all", status_code=status.HTTP_200_OK)
-def logout_all(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def logout_all(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
+    record_activity(db, current_user.id, "logout_all", request)
     return {"message": "Signed out of all devices."}

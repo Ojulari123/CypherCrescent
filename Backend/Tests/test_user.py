@@ -55,11 +55,74 @@ class TestAuth:
         )
         assert r.status_code == 401
 
-    def test_refresh_returns_new_token(self, client):
+    def test_register_and_login_return_refresh_token(self, client):
         body = register(client)
-        r = client.post("/api/users/refresh", headers=auth(body["access_token"]))
+        assert "refresh_token" in body
+        login = client.post(
+            "/api/users/login",
+            json={"email": SAMPLE_USER["email"], "password": SAMPLE_USER["password"]},
+        )
+        assert "refresh_token" in login.json()
+
+    def test_refresh_returns_new_token_pair(self, client):
+        body = register(client)
+        r = client.post("/api/users/refresh", json={"refresh_token": body["refresh_token"]})
         assert r.status_code == 200
         assert "access_token" in r.json()
+        assert "refresh_token" in r.json()
+        # the new access token actually works
+        assert client.get("/api/users/me", headers=auth(r.json()["access_token"])).status_code == 200
+
+    def test_access_token_works_on_protected_route(self, client):
+        body = register(client)
+        assert client.get("/api/users/me", headers=auth(body["access_token"])).status_code == 200
+
+    def test_refresh_with_access_token_rejected_401(self, client):
+        body = register(client)
+        # an access token is not a refresh token
+        r = client.post("/api/users/refresh", json={"refresh_token": body["access_token"]})
+        assert r.status_code == 401
+
+    def test_refresh_with_garbage_401(self, client):
+        r = client.post("/api/users/refresh", json={"refresh_token": "not-a-jwt"})
+        assert r.status_code == 401
+
+    def test_refresh_token_invalidated_after_logout_all(self, client):
+        body = register(client)
+        client.post("/api/users/logout-all", headers=auth(body["access_token"]))
+        r = client.post("/api/users/refresh", json={"refresh_token": body["refresh_token"]})
+        assert r.status_code == 401
+
+    def test_refresh_token_cannot_be_used_as_access_token_401(self, client):
+        body = register(client)
+        r = client.get("/api/users/me", headers=auth(body["refresh_token"]))
+        assert r.status_code == 401
+
+    def test_refresh_rotates_old_token_rejected(self, client):
+        body = register(client)
+        r1 = client.post("/api/users/refresh", json={"refresh_token": body["refresh_token"]})
+        assert r1.status_code == 200
+        # the original (now-rotated) token can't be used again
+        r2 = client.post("/api/users/refresh", json={"refresh_token": body["refresh_token"]})
+        assert r2.status_code == 401
+
+    def test_reuse_revokes_whole_session(self, client):
+        body = register(client)
+        first = body["refresh_token"]
+        rotated = client.post("/api/users/refresh", json={"refresh_token": first}).json()["refresh_token"]
+
+        # replay the stolen original -> reuse detected, session revoked
+        assert client.post("/api/users/refresh", json={"refresh_token": first}).status_code == 401
+        # the legitimate rotated token is now dead too (whole session killed)
+        assert client.post("/api/users/refresh", json={"refresh_token": rotated}).status_code == 401
+
+    def test_sequential_refresh_chain_works(self, client):
+        body = register(client)
+        tok = body["refresh_token"]
+        for _ in range(3):
+            r = client.post("/api/users/refresh", json={"refresh_token": tok})
+            assert r.status_code == 200
+            tok = r.json()["refresh_token"]
 
 # /me Tests
 class TestMe:

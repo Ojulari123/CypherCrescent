@@ -33,6 +33,7 @@ class User(Base):
 
     holdings = relationship("Holding", back_populates="user", cascade="all, delete-orphan")
     watchlist = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
+    activity_logs = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")
 
 class Holding(Base):
     __tablename__ = "holdings"
@@ -64,6 +65,18 @@ class Watchlist(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "coin_slug", name="uq_watchlist_user_coin"),
     )
+
+class ActivityLog(Base):
+    __tablename__ = "activity_log"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    event = Column(String(50), nullable=False)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(400), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="activity_logs")
 
 def get_db():
     db = Local_Session()

@@ -1,9 +1,8 @@
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from tables import User
 from Schemas.marketSchema import *
 from Utils.security import get_current_user
-from Utils.coingecko import get_markets, search_coins, get_market_chart, validate_coin_slug
+from Utils.coingecko import get_markets, search_coins, get_market_chart, validate_coin_slug, MarketDataError
 
 market_router = APIRouter()
 
@@ -22,7 +21,7 @@ def coin_markets(ids: str = Query(..., description="Comma-separated CoinGecko id
 
     try:
         data = get_markets(coin_ids)
-    except httpx.HTTPError:
+    except MarketDataError:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Market data unavailable")
 
     return [CoinMarket.model_validate(c) for c in data]
@@ -39,7 +38,7 @@ def coin_chart(coin_id: str, range: ChartRange = Query(ChartRange.WEEK, descript
     days = RANGE_TO_DAYS[range]
     try:
         data = get_market_chart(coin_id, days)
-    except httpx.HTTPError:
+    except MarketDataError:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Market data unavailable")
 
     points = [{"timestamp": int(ts), "price": price} for ts, price in data.get("prices", [])]
@@ -50,7 +49,7 @@ def coin_chart(coin_id: str, range: ChartRange = Query(ChartRange.WEEK, descript
 def search(q: str = Query(..., min_length=1, description="Search query"), current_user: User = Depends(get_current_user)):
     try:
         results = search_coins(q)
-    except httpx.HTTPError:
+    except MarketDataError:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Search unavailable")
 
     return [CoinSearchResult.model_validate(c) for c in results]

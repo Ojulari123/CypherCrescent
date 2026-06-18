@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from tables import User, Holding, Watchlist
+from tables import User, Holding, Watchlist, ActivityLog
 from Utils.cloudinary import delete_image_from_cloudinary
 
 def cascade_delete_user(user: User, db: Session):
@@ -11,5 +11,7 @@ def cascade_delete_user(user: User, db: Session):
     db.query(Holding).filter(Holding.user_id == user_id).delete(synchronize_session=False)
 
     db.query(Watchlist).filter(Watchlist.user_id == user_id).delete(synchronize_session=False)
+
+    db.query(ActivityLog).filter(ActivityLog.user_id == user_id).delete(synchronize_session=False)
 
     db.delete(user)
