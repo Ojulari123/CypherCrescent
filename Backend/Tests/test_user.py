@@ -112,21 +112,34 @@ class TestMe:
 # Password change
 # ────────────────────────────────────────────────────────────────────
 class TestPasswordChange:
-    def test_change_password_returns_fresh_token_and_invalidates_old(self, client):
+    def test_change_password_returns_fresh_token_and_invalidates_old(self, client, patch_external_io):
         body = register(client)
         old_token = body["access_token"]
 
+        # Step 1: triggers an emailed code, does not change the password yet
         r = client.put(
             "/api/users/me/password",
             json={"current_password": SAMPLE_USER["password"], "new_password": "NewSecret123!"},
             headers=auth(old_token),
         )
         assert r.status_code == 200
-        new_token = r.json()["access_token"]
+        assert r.json()["two_factor_required"] is True
+        assert "access_token" not in r.json()
+        # Old token still valid until the change is confirmed
+        assert client.get("/api/users/me", headers=auth(old_token)).status_code == 200
 
-        # Old token now stale (token_version bumped)
+        # Step 2: confirm with the emailed code
+        code = patch_external_io["two_factor"].call_args.args[2]
+        r2 = client.put(
+            "/api/users/me/password/verify",
+            json={"code": code, "new_password": "NewSecret123!"},
+            headers=auth(old_token),
+        )
+        assert r2.status_code == 200
+        new_token = r2.json()["access_token"]
+
+        # Old token now stale (token_version bumped); new token works
         assert client.get("/api/users/me", headers=auth(old_token)).status_code == 401
-        # New token works
         assert client.get("/api/users/me", headers=auth(new_token)).status_code == 200
 
     def test_change_password_wrong_current_401(self, client):
@@ -161,6 +174,13 @@ class TestLogout:
     def test_logout_invalidates_token(self, client):
         body = register(client)
         r = client.post("/api/users/logout", headers=auth(body["access_token"]))
+        assert r.status_code == 200
+        r2 = client.get("/api/users/me", headers=auth(body["access_token"]))
+        assert r2.status_code == 401
+
+    def test_logout_all_invalidates_token(self, client):
+        body = register(client)
+        r = client.post("/api/users/logout-all", headers=auth(body["access_token"]))
         assert r.status_code == 200
         r2 = client.get("/api/users/me", headers=auth(body["access_token"]))
         assert r2.status_code == 401

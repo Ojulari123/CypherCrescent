@@ -156,6 +156,42 @@ def send_password_reset_email(to_email: str, first_name: str, token: str) -> Non
         text=text,
     )
 
+def send_two_factor_code_email(to_email: str, first_name: str, code: str, action: str) -> None:
+    body = f"""
+      <h2 style="margin:0 0 16px 0;font-size:20px;color:#ffffff;">Your verification code</h2>
+      <p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#c8cee0;">
+        Hi {first_name}, use this code to {action}:
+      </p>
+      <p style="margin:24px 0;font-size:34px;font-weight:700;letter-spacing:8px;color:#ffffff;">{code}</p>
+      <p style="margin:0;font-size:13px;color:#8a93b2;">
+        This code expires in {settings.OTP_EXPIRE_MINUTES} minutes. If you didn't request it, you can ignore this email.
+      </p>
+    """
+
+    text = (
+        f"Hi {first_name},\n\n"
+        f"Your CypherCrescent code to {action} is: {code}\n\n"
+        f"It expires in {settings.OTP_EXPIRE_MINUTES} minutes. If you didn't request it, ignore this email.\n"
+    )
+
+    send(
+        to_email=to_email,
+        subject="Your CypherCrescent verification code",
+        html=base_template(
+            title="Your verification code",
+            preheader="Your CypherCrescent verification code.",
+            body_html=body,
+        ),
+        text=text,
+    )
+
+def send_two_factor_code(email: str, first_name: str, code: str, action: str) -> None:
+    """Safe, background-friendly: sends the code, swallowing/logging any SMTP failure."""
+    try:
+        send_two_factor_code_email(email, first_name, code, action)
+    except Exception as e:
+        logger.exception("Failed to send 2FA code to %s: %s", email, e)
+
 def send_verification(email: str, first_name: str) -> None:
     """Safe, background-friendly: builds the token and sends, swallowing/logging any SMTP failure."""
     try:

@@ -7,7 +7,8 @@ from tables import get_db, User
 from Schemas.userSchema import *
 from Utils.security import *
 from Utils.email_token import *
-from Utils.email import send_verification, send_password_reset
+from Utils.email import send_verification, send_password_reset, send_two_factor_code
+from Utils.two_factor import create_code, verify_code
 from Utils.cloudinary import upload_image_to_cloudinary, delete_image_from_cloudinary, ALLOWED_IMAGE_TYPES
 from Utils.user import cascade_delete_user
 from Utils.rate_limit import limiter
@@ -55,13 +56,35 @@ def register_users(request: Request, payload: UserCreate, background_tasks: Back
     )
 
 # User Login
-@user_router.post("/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+@user_router.post("/login", status_code=status.HTTP_200_OK)
 @limiter.limit("5/minute")
-async def login_user(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
+async def login_user(request: Request, payload: UserLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
 
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+
+    if user.two_factor_enabled:
+        code = create_code(user.id, "login")
+        background_tasks.add_task(send_two_factor_code, user.email, user.first_name, code, "sign in")
+        challenge = create_twofa_challenge_token(user.id, user.token_version)
+        return {"two_factor_required": True, "challenge_token": challenge}
+
+    token = create_access_token({"user_id": user.id, "tv": user.token_version})
+    return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
+
+# Complete a 2FA login (exchange the challenge token + emailed code for an access token)
+@user_router.post("/2fa/verify", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+@limiter.limit("10/minute")
+def verify_two_factor_login(request: Request, payload: TwoFactorVerify, db: Session = Depends(get_db)):
+    claims = decode_twofa_challenge_token(payload.challenge_token)
+
+    user = db.get(User, claims["user_id"])
+    if not user or claims.get("tv", 0) != (user.token_version or 0):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Challenge expired. Please log in again.")
+
+    if not verify_code(user.id, "login", payload.code):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired code")
 
     token = create_access_token({"user_id": user.id, "tv": user.token_version})
     return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
@@ -75,6 +98,9 @@ def login_for_token(request: Request, form_data: OAuth2PasswordRequestForm = Dep
 
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+
+    if user.two_factor_enabled:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="2FA is enabled. Log in via /api/users/login then /api/users/2fa/verify.")
 
     token = create_access_token({"user_id": user.id, "tv": user.token_version})
     return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
@@ -175,9 +201,9 @@ def update_me(payload: UserUpdate, background_tasks: BackgroundTasks, db: Sessio
     db.refresh(current_user)
     return UserResponse.model_validate(current_user)
 
-# Change password
-@user_router.put("/me/password", response_model=TokenResponse, status_code=status.HTTP_200_OK)
-def change_password(payload: PasswordChange, db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
+# Change password (step 1): verify current/new, then email a confirmation code
+@user_router.put("/me/password", status_code=status.HTTP_200_OK)
+def change_password(payload: PasswordChange, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not verify_password(payload.current_password, current_user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect")
 
@@ -185,6 +211,20 @@ def change_password(payload: PasswordChange, db: Session = Depends(get_db),curre
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must be different from your current password")
 
     validate_password(payload.new_password)
+
+    code = create_code(current_user.id, "password_change")
+    background_tasks.add_task(send_two_factor_code, current_user.email, current_user.first_name, code, "change your password")
+    return {"two_factor_required": True, "message": "A verification code has been sent to your email."}
+
+# Change password (step 2): confirm with the emailed code
+@user_router.put("/me/password/verify", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+def verify_change_password(payload: PasswordChangeVerify, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not verify_code(current_user.id, "password_change", payload.code):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired code")
+
+    validate_password(payload.new_password)
+    if verify_password(payload.new_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must be different from your current password")
 
     current_user.password_hash = hash_password(payload.new_password)
     current_user.token_version = (current_user.token_version or 0) + 1
@@ -233,9 +273,62 @@ def delete_me(payload: DeleteAccount, db: Session = Depends(get_db), current_use
     db.commit()
     return {"message": "Account deleted successfully."}
 
+# Enable 2FA (step 1): email a confirmation code
+@user_router.post("/2fa/enable", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
+def enable_two_factor(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.two_factor_enabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is already enabled")
+
+    code = create_code(current_user.id, "enable_2fa")
+    background_tasks.add_task(send_two_factor_code, current_user.email, current_user.first_name, code, "enable two-factor authentication")
+    return {"message": "A verification code has been sent to your email."}
+
+# Enable 2FA (step 2): confirm with the emailed code
+@user_router.post("/2fa/enable/confirm", status_code=status.HTTP_200_OK)
+def confirm_enable_two_factor(payload: TwoFactorCode, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.two_factor_enabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is already enabled")
+    if not verify_code(current_user.id, "enable_2fa", payload.code):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired code")
+
+    current_user.two_factor_enabled = True
+    db.commit()
+    return {"message": "Two-factor authentication is now enabled."}
+
+# Disable 2FA (step 1): email a confirmation code
+@user_router.post("/2fa/disable", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
+def disable_two_factor(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not current_user.two_factor_enabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is not enabled")
+
+    code = create_code(current_user.id, "disable_2fa")
+    background_tasks.add_task(send_two_factor_code, current_user.email, current_user.first_name, code, "disable two-factor authentication")
+    return {"message": "A verification code has been sent to your email."}
+
+# Disable 2FA (step 2): confirm with the emailed code
+@user_router.post("/2fa/disable/confirm", status_code=status.HTTP_200_OK)
+def confirm_disable_two_factor(payload: TwoFactorCode, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not current_user.two_factor_enabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is not enabled")
+    if not verify_code(current_user.id, "disable_2fa", payload.code):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired code")
+
+    current_user.two_factor_enabled = False
+    db.commit()
+    return {"message": "Two-factor authentication is now disabled."}
+
 # Logout
 @user_router.post("/logout", status_code=status.HTTP_200_OK)
 def logout(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
     return {"message": "Logged out successfully."}
+
+# Logout of all devices (invalidates every issued token)
+@user_router.post("/logout-all", status_code=status.HTTP_200_OK)
+def logout_all(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    current_user.token_version = (current_user.token_version or 0) + 1
+    db.commit()
+    return {"message": "Signed out of all devices."}

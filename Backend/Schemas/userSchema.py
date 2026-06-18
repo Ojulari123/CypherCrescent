@@ -80,6 +80,24 @@ class ResetPasswordRequest(BaseModel):
             raise ValueError("Password must be at least 8 characters")
         return v
 
+class TwoFactorCode(BaseModel):
+    code: str
+
+class TwoFactorVerify(BaseModel):
+    challenge_token: str
+    code: str
+
+class PasswordChangeVerify(BaseModel):
+    code: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_min_length(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
 # Response    
 class UserResponse(BaseModel):
     id: int
@@ -88,6 +106,7 @@ class UserResponse(BaseModel):
     last_name: str
     display_name: Optional[str] = None
     email_verified: bool
+    two_factor_enabled: bool
     profile_photo_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime

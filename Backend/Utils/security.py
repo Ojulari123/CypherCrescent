@@ -59,6 +59,28 @@ def decode_password_reset_token(token: str) -> dict:
     except JWTError:
         raise HTTPException(status_code=400, detail="Invalid reset link. Please request a new one.")
 
+# Create a short-lived token issued after the password step of a 2FA login,
+# exchanged (with the emailed code) for a real access token.
+def create_twofa_challenge_token(user_id: int, token_version: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+    return jwt.encode(
+        {"user_id": user_id, "tv": token_version, "purpose": "2fa_login", "exp": expire},
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+# Decode a 2FA login challenge token, returning its claims
+def decode_twofa_challenge_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        if payload.get("purpose") != "2fa_login" or payload.get("user_id") is None:
+            raise HTTPException(status_code=400, detail="Invalid challenge")
+        return payload
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Challenge expired. Please log in again.")
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid challenge")
+
 # Create access token
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()

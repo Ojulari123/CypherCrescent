@@ -84,11 +84,34 @@ def client():
 
     Base.metadata.drop_all(bind=test_engine)
 
+# Minimal in-memory stand-in for Redis so 2FA tests don't need a live server.
+class FakeRedis:
+    def __init__(self):
+        self.store = {}
+
+    def setex(self, key, ttl, value):
+        self.store[key] = value
+
+    def get(self, key):
+        return self.store.get(key)
+
+    def delete(self, key):
+        self.store.pop(key, None)
+
+    def ttl(self, key):
+        return 600 if key in self.store else -2
+
+@pytest.fixture(autouse=True)
+def fake_otp_store():
+    with patch("Utils.two_factor.redis_client", FakeRedis()):
+        yield
+
 # Stub out SMTP and Cloudinary so tests don't touch the network.
 @pytest.fixture(autouse=True)
 def patch_external_io():
     with patch("Routes.user.send_verification") as mock_send_v, \
          patch("Routes.user.send_password_reset") as mock_send_pr, \
+         patch("Routes.user.send_two_factor_code") as mock_send_2fa, \
          patch("Routes.user.upload_image_to_cloudinary") as mock_upload, \
          patch("Routes.user.delete_image_from_cloudinary") as mock_delete, \
          patch("Utils.user.delete_image_from_cloudinary") as mock_cascade_delete:
@@ -98,6 +121,7 @@ def patch_external_io():
         yield {
             "send_verification": mock_send_v,
             "send_password_reset": mock_send_pr,
+            "two_factor": mock_send_2fa,
             "upload": mock_upload,
             "delete": mock_delete,
             "cascade_delete": mock_cascade_delete,

@@ -25,6 +25,7 @@ class User(Base):
     last_name = Column(String(100), nullable=False)
     display_name = Column(String(100), nullable=True)
     email_verified = Column(Boolean, default=False, nullable=False)
+    two_factor_enabled = Column(Boolean, nullable=False, server_default="false", default=False)
     profile_photo_url = Column(String(500), nullable=True)
     token_version = Column(Integer, nullable=False, server_default="0", default=0)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
