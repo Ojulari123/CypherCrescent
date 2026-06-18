@@ -188,12 +188,12 @@ class TestEmailFlows:
     def test_resend_verification_known_email(self, client, patch_external_io):
         register(client)
         patch_external_io["send_verification"].reset_mock()
-        r = client.post("/api/users/resend-verification", data={"email": SAMPLE_USER["email"]})
+        r = client.post("/api/users/resend-verification", json={"email": SAMPLE_USER["email"]})
         assert r.status_code == 200
         patch_external_io["send_verification"].assert_called_once()
 
     def test_resend_verification_unknown_email_silent_200(self, client, patch_external_io):
-        r = client.post("/api/users/resend-verification", data={"email": "nobody@example.com"})
+        r = client.post("/api/users/resend-verification", json={"email": "nobody@example.com"})
         assert r.status_code == 200
         patch_external_io["send_verification"].assert_not_called()
 
@@ -203,7 +203,7 @@ class TestEmailFlows:
         client.get("/api/users/verify-email", params={"token": token})
 
         patch_external_io["send_verification"].reset_mock()
-        r = client.post("/api/users/resend-verification", data={"email": SAMPLE_USER["email"]})
+        r = client.post("/api/users/resend-verification", json={"email": SAMPLE_USER["email"]})
         assert r.status_code == 200  # same response as unknown/unverified — no enumeration
         patch_external_io["send_verification"].assert_not_called()
 
@@ -258,6 +258,23 @@ class TestEmailFlows:
             json={"token": token, "new_password": SAMPLE_USER["password"]},
         )
         assert r.status_code == 400
+
+    def test_reset_password_token_is_single_use(self, client):
+        register(client)  # new user -> token_version 0
+        token = create_password_reset_token(SAMPLE_USER["email"])
+
+        r1 = client.post(
+            "/api/users/reset-password",
+            json={"token": token, "new_password": "FreshPass123!"},
+        )
+        assert r1.status_code == 200
+
+        # Reusing the same token after a successful reset is rejected (token_version bumped)
+        r2 = client.post(
+            "/api/users/reset-password",
+            json={"token": token, "new_password": "EvenFresher123!"},
+        )
+        assert r2.status_code == 400
 
 # Profile photo
 class TestProfilePhoto:

@@ -1,9 +1,9 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Form, Request, File, UploadFile, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Request, File, UploadFile, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from tables import *
+from tables import get_db, User
 from Schemas.userSchema import *
 from Utils.security import *
 from Utils.email_token import *
@@ -106,9 +106,8 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 # Re-send verification
 @user_router.post("/resend-verification", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
-def resend_verification(request: Request, background_tasks: BackgroundTasks, email: str = Form(...), db: Session = Depends(get_db)):
-    email = email.strip().lower()
-    user = db.query(User).filter(User.email == email).first()
+def resend_verification(request: Request, payload: ResendVerificationRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
 
     if user and not user.email_verified:
         background_tasks.add_task(send_verification, user.email, user.first_name)
@@ -121,7 +120,7 @@ def resend_verification(request: Request, background_tasks: BackgroundTasks, ema
 def forgot_password(request: Request, payload: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if user:
-        background_tasks.add_task(send_password_reset, user.email, user.first_name)
+        background_tasks.add_task(send_password_reset, user.email, user.first_name, user.token_version)
 
     return {"message": "If an account exists with that email, a reset link has been sent."}
 
@@ -129,11 +128,14 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, background
 @user_router.post("/reset-password", status_code=status.HTTP_200_OK)
 @limiter.limit("5/minute")
 def reset_password(request: Request, payload: ResetPasswordRequest, db: Session = Depends(get_db)):
-    email = decode_password_reset_token(payload.token)
+    claims = decode_password_reset_token(payload.token)
 
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == claims["email"]).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    if claims.get("tv", 0) != (user.token_version or 0):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This reset link has already been used or is no longer valid. Please request a new one.")
 
     validate_password(payload.new_password)
 
@@ -158,13 +160,14 @@ def update_me(payload: UserUpdate, background_tasks: BackgroundTasks, db: Sessio
         existing = db.query(User).filter(User.email == payload.email).first()
         if existing:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists")
+        
         current_user.email = payload.email
         current_user.email_verified = False
         background_tasks.add_task(send_verification, payload.email, current_user.first_name)
 
-    if payload.first_name:
+    if payload.first_name is not None:
         current_user.first_name = payload.first_name
-    if payload.last_name:
+    if payload.last_name is not None:
         current_user.last_name = payload.last_name
     if payload.display_name is not None:
         current_user.display_name = payload.display_name

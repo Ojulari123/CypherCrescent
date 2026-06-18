@@ -7,11 +7,10 @@ from Utils.security import create_password_reset_token
 
 logger = logging.getLogger(__name__)
 
-
 def sender() -> str:
     return settings.EMAIL_FROM or settings.SMTP_USER
 
-
+# Helper to send the emails
 def send(to_email: str, subject: str, html: str, text: str) -> None:
     msg = EmailMessage()
     msg["From"] = sender()
@@ -66,7 +65,6 @@ def base_template(title: str, preheader: str, body_html: str) -> str:
 </body>
 </html>"""
 
-
 def button(href: str, label: str) -> str:
     return f"""
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
@@ -80,7 +78,6 @@ def button(href: str, label: str) -> str:
         </tr>
       </table>
     """
-
 
 def send_verification_email(to_email: str, first_name: str, token: str) -> None:
     verify_url = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}"
@@ -119,7 +116,6 @@ def send_verification_email(to_email: str, first_name: str, token: str) -> None:
         ),
         text=text,
     )
-
 
 def send_password_reset_email(to_email: str, first_name: str, token: str) -> None:
     reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
@@ -160,7 +156,6 @@ def send_password_reset_email(to_email: str, first_name: str, token: str) -> Non
         text=text,
     )
 
-
 def send_verification(email: str, first_name: str) -> None:
     """Safe, background-friendly: builds the token and sends, swallowing/logging any SMTP failure."""
     try:
@@ -169,11 +164,10 @@ def send_verification(email: str, first_name: str) -> None:
     except Exception as e:
         logger.exception("Failed to send verification email to %s: %s", email, e)
 
-
-def send_password_reset(email: str, first_name: str) -> None:
+def send_password_reset(email: str, first_name: str, token_version: int = 0) -> None:
     """Safe, background-friendly: builds the token and sends, swallowing/logging any SMTP failure."""
     try:
-        token = create_password_reset_token(email)
+        token = create_password_reset_token(email, token_version)
         send_password_reset_email(email, first_name, token)
     except Exception as e:
         logger.exception("Failed to send reset email to %s: %s", email, e)

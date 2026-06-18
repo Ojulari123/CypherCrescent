@@ -35,34 +35,38 @@ def validate_password(password: str) -> str:
         )
     return password
 
-def create_password_reset_token(email: str) -> str:
+# Create password reset token. Embeds the user's current token_version so the
+# token becomes single-use: resetting bumps token_version and invalidates it.
+def create_password_reset_token(email: str, token_version: int = 0) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.PASSWORD_RESET_EXPIRE_MINUTES)
     return jwt.encode(
-        {"email": email, "purpose": "password_reset", "exp": expire},
+        {"email": email, "tv": token_version, "purpose": "password_reset", "exp": expire},
         settings.JWT_SECRET,
         algorithm=settings.JWT_ALGORITHM,
     )
 
-def decode_password_reset_token(token: str) -> str:
+# Decode password reset token, returning its claims (email, tv)
+def decode_password_reset_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         if payload.get("purpose") != "password_reset":
             raise HTTPException(status_code=400, detail="Invalid reset token")
-        email = payload.get("email")
-        if not email:
+        if not payload.get("email"):
             raise HTTPException(status_code=400, detail="Invalid reset token")
-        return email
+        return payload
     except ExpiredSignatureError:
         raise HTTPException(status_code=400, detail="Reset link has expired. Please request a new one.")
     except JWTError:
         raise HTTPException(status_code=400, detail="Invalid reset link. Please request a new one.")
 
+# Create access token
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
+# Decode access token
 def decode_access_token(token: str) -> dict:
     try:
         payload = jwt.decode(
@@ -85,6 +89,7 @@ def decode_access_token(token: str) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         ) 
 
+# Get token version
 def check_token_version(payload: dict, user) -> None:
     if payload.get("tv", 0) != getattr(user, "token_version", 0):
         raise HTTPException(
@@ -93,24 +98,18 @@ def check_token_version(payload: dict, user) -> None:
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+# Get current user
 def get_current_user(token: str = Depends(user_oauth2), db: Session = Depends(get_db)):
     payload = decode_access_token(token)
 
     user_id = payload.get("user_id")
 
     if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
     
     user = db.get(User, user_id)
-
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     check_token_version(payload, user)
     return user

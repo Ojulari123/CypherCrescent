@@ -1,7 +1,7 @@
 import httpx
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from tables import *
+from tables import get_db, User, Holding
 from Schemas.marketSchema import DashboardResponse
 from Utils.security import get_current_user
 from Utils.coingecko import get_markets

@@ -30,6 +30,15 @@ class UserUpdate(BaseModel):
 
     _normalize_email = field_validator("email")(normalize_email)
 
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def not_blank(cls, v):
+        if v is not None:
+            v = v.strip()
+            if not v:
+                raise ValueError("cannot be empty")
+        return v
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
@@ -48,6 +57,11 @@ class PasswordChange(BaseModel):
         return v
 
 class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+    _normalize_email = field_validator("email")(normalize_email)
+
+class ResendVerificationRequest(BaseModel):
     email: EmailStr
 
     _normalize_email = field_validator("email")(normalize_email)

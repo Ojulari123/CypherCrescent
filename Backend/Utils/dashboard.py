@@ -8,9 +8,8 @@ def to_decimal(value):
         return None
     return Decimal(str(value))
 
-
+# Combine one Holding row with its CoinGecko market data
 def enrich_holding(holding, market_by_id):
-    """Combine one Holding row with its CoinGecko market data."""
     market = market_by_id.get(holding.coin_slug, {})
     cost_basis = holding.buy_price * holding.quantity
     current_price = to_decimal(market.get("current_price"))
@@ -43,9 +42,8 @@ def enrich_holding(holding, market_by_id):
         "pl_percent": pl_percent,
     }
 
-
+# Build the dashboard response from holdings + market data.
 def build_dashboard(holdings, market_data, market_data_available=True):
-    """Compose the dashboard response from holdings + market data."""
     market_by_id = {m["id"]: m for m in market_data}
     enriched = [enrich_holding(h, market_by_id) for h in holdings]
 
@@ -55,8 +53,7 @@ def build_dashboard(holdings, market_data, market_data_available=True):
     if with_market:
         total_value = sum((e["value"] for e in with_market), ZERO)
         total_pl = sum((e["pl"] for e in with_market), ZERO)
-        # Percent must use the cost of only the holdings we have prices for,
-        # otherwise coins without market data dilute the result.
+        # Percent must use the cost of only the holdings we have prices for, to prevent coins without market data diluting the result
         cost_with_market = sum((e["cost_basis"] for e in with_market), ZERO)
         total_pl_percent = (total_pl / cost_with_market * 100) if cost_with_market else ZERO
     else:

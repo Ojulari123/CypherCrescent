@@ -1,8 +1,15 @@
 from typing import Optional, List
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
+import enum
 
+# Enum
+class ChartRange(str, enum.Enum):
+    DAY = "24h"
+    WEEK = "7d"
+    MONTH = "30d"
 
+# Request
 class CoinMarket(BaseModel):
     id: str
     symbol: str
@@ -14,17 +21,9 @@ class CoinMarket(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-
-class CoinSearchResult(BaseModel):
-    id: str
-    symbol: str
-    name: str
-    thumb: Optional[str] = None
-    large: Optional[str] = None
-    market_cap_rank: Optional[int] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
+class ChartPoint(BaseModel):
+    timestamp: int
+    price: float
 
 class HoldingWithMarket(BaseModel):
     id: int
@@ -44,12 +43,17 @@ class HoldingWithMarket(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-
 class Performer(BaseModel):
     coin_slug: str
     name: Optional[str] = None
     pl_percent: Decimal
 
+# Response
+class ChartResponse(BaseModel):
+    coin_id: str
+    range: str
+    days: int
+    points: List[ChartPoint]
 
 class DashboardResponse(BaseModel):
     total_value: Decimal
@@ -60,3 +64,13 @@ class DashboardResponse(BaseModel):
     worst_performer: Optional[Performer] = None
     holdings: List[HoldingWithMarket]
     market_data_available: bool = True
+
+class CoinSearchResult(BaseModel):
+    id: str
+    symbol: str
+    name: str
+    thumb: Optional[str] = None
+    large: Optional[str] = None
+    market_cap_rank: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)

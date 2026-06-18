@@ -2,17 +2,16 @@ import httpx
 from typing import List
 
 from fastapi import HTTPException, status
-
 from Config.config import settings
 from Utils.redis_cache import cached
 
 HEADERS = {"accept": "application/json"}
+
 if settings.COINGECKO_API_KEY:
     HEADERS["x-cg-demo-api-key"] = settings.COINGECKO_API_KEY
 
-
+# Fetch CoinGecko /coins/markets for a list of ids.
 def get_markets(coin_ids: List[str]) -> list:
-    """Fetch CoinGecko /coins/markets for a list of ids."""
     if not coin_ids:
         return []
     ids = ",".join(sorted(set(coin_ids)))
@@ -36,9 +35,8 @@ def get_markets(coin_ids: List[str]) -> list:
 
     return cached(key, settings.MARKET_CACHE_TTL, fetch)
 
-
+# Search CoinGecko coins by name or symbol
 def search_coins(query: str) -> list:
-    """Search CoinGecko coins by name or symbol. Returns only the 'coins' section."""
     query = query.strip().lower()
     if not query:
         return []
@@ -54,9 +52,22 @@ def search_coins(query: str) -> list:
 
     return cached(key, settings.SEARCH_CACHE_TTL, fetch)
 
+# Fetch CoinGecko /coins/{id}/market_chart for the given lookback window.
+def get_market_chart(coin_id: str, days: int) -> dict:
+    key = f"cg:chart:{coin_id}:{days}"
 
+    def fetch():
+        url = f"{settings.COINGECKO_BASE_URL}/coins/{coin_id}/market_chart"
+        params = {"vs_currency": "usd", "days": days}
+        with httpx.Client(timeout=10.0, headers=HEADERS) as client:
+            r = client.get(url, params=params)
+            r.raise_for_status()
+            return r.json()
+
+    return cached(key, settings.CHART_CACHE_TTL, fetch)
+
+# Ensure coin_slug is a real CoinGecko coin id before it gets stored.
 def validate_coin_slug(coin_slug: str) -> None:
-    """Ensure coin_slug is a real CoinGecko coin id before it gets stored."""
     try:
         data = get_markets([coin_slug])
     except httpx.HTTPError:

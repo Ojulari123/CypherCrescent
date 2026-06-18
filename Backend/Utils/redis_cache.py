@@ -1,9 +1,7 @@
 import json
 import logging
 from typing import Any, Callable, Optional
-
 import redis
-
 from Config.config import settings
 
 logger = logging.getLogger(__name__)
@@ -19,9 +17,8 @@ except Exception as e:
     logger.warning("Failed to create Redis client (%s). Cache will be a no-op.", e)
     redis_client = None
 
-
+# Return cached JSON value if present; otherwise call fetch_fn and store its result for ttl seconds
 def cached(key: str, ttl: int, fetch_fn: Callable[[], Any]) -> Any:
-    """Return cached JSON value if present; otherwise call fetch_fn and store its result for ttl seconds."""
     if redis_client is not None:
         try:
             hit = redis_client.get(key)

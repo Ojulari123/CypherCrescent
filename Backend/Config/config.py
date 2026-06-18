@@ -25,10 +25,11 @@ class Settings(BaseSettings):
     CYPHER_CRESCENT_CLOUDINARY_API_SECRET: str
 
     COINGECKO_API_KEY: str
-    COINGECKO_BASE_URL: str = "https://api.coingecko.com/api/v3"
+    COINGECKO_BASE_URL: str
     REDIS_URL: str
     MARKET_CACHE_TTL: int = 60
     SEARCH_CACHE_TTL: int = 600
+    CHART_CACHE_TTL: int = 300
 
     FRONTEND_URL: str = "http://localhost:3000"
 

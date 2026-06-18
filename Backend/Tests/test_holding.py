@@ -1,7 +1,9 @@
 from decimal import Decimal
 from unittest.mock import patch
 import pytest
-from conftest import SAMPLE_USER, auth, register
+from sqlalchemy.exc import IntegrityError
+from conftest import SAMPLE_USER, auth, register, TestSession
+from tables import Holding
 
 SAMPLE_HOLDING = {
     "coin_slug": "bitcoin",
@@ -66,6 +68,28 @@ class TestAddHolding:
         body = register(client)
         add_sample_holding(client, body["access_token"])
         r = client.post("/api/holdings", json=SAMPLE_HOLDING, headers=auth(body["access_token"]))
+        assert r.status_code == 409
+
+    def test_db_unique_constraint_blocks_duplicate(self, client):
+        # The (user_id, coin_slug) unique constraint is enforced at the DB level,
+        # not just by the route's pre-check.
+        s = TestSession()
+        try:
+            s.add(Holding(user_id=1, coin_slug="bitcoin", quantity=1, buy_price=1))
+            s.commit()
+            s.add(Holding(user_id=1, coin_slug="bitcoin", quantity=2, buy_price=2))
+            with pytest.raises(IntegrityError):
+                s.commit()
+            s.rollback()
+        finally:
+            s.close()
+
+    def test_add_race_integrityerror_returns_409(self, client):
+        # If a concurrent insert slips past the pre-check, the commit's IntegrityError
+        # is mapped to 409 rather than surfacing as a 500.
+        body = register(client)
+        with patch("sqlalchemy.orm.Session.commit", side_effect=IntegrityError("dup", {}, Exception("dup"))):
+            r = client.post("/api/holdings", json=SAMPLE_HOLDING, headers=auth(body["access_token"]))
         assert r.status_code == 409
 
     def test_add_zero_quantity_422(self, client):

@@ -54,6 +54,13 @@ class TestAddWatchlist:
         r = client.post("/api/watchlist", json={"coin_slug": "bitcoin"}, headers=auth(body["access_token"]))
         assert r.status_code == 409
 
+    def test_add_race_integrityerror_returns_409(self, client):
+        from sqlalchemy.exc import IntegrityError
+        body = register(client)
+        with patch("sqlalchemy.orm.Session.commit", side_effect=IntegrityError("dup", {}, Exception("dup"))):
+            r = client.post("/api/watchlist", json={"coin_slug": "bitcoin"}, headers=auth(body["access_token"]))
+        assert r.status_code == 409
+
     def test_add_unrecognized_coin_400(self, client):
         body = register(client)
         with patch("Utils.coingecko.get_markets", return_value=[]):
@@ -81,7 +88,7 @@ class TestListWatchlist:
         body = register(client)
         add_to_watchlist(client, body["access_token"], "bitcoin")
 
-        with patch("Routes.watchlist.get_markets", return_value=SAMPLE_MARKETS):
+        with patch("Utils.watchlist.get_markets", return_value=SAMPLE_MARKETS):
             r = client.get("/api/watchlist", headers=auth(body["access_token"]))
 
         assert r.status_code == 200
@@ -96,7 +103,7 @@ class TestListWatchlist:
         body = register(client)
         add_to_watchlist(client, body["access_token"], "bitcoin")
 
-        with patch("Routes.watchlist.get_markets", side_effect=httpx.HTTPError("down")):
+        with patch("Utils.watchlist.get_markets", side_effect=httpx.HTTPError("down")):
             r = client.get("/api/watchlist", headers=auth(body["access_token"]))
 
         assert r.status_code == 200
@@ -110,7 +117,7 @@ class TestListWatchlist:
         add_to_watchlist(client, alice["access_token"], "bitcoin")
         bob = register(client, OTHER_USER)
 
-        with patch("Routes.watchlist.get_markets", return_value=[]):
+        with patch("Utils.watchlist.get_markets", return_value=[]):
             r = client.get("/api/watchlist", headers=auth(bob["access_token"]))
         assert r.status_code == 200
         assert r.json() == []
@@ -123,7 +130,7 @@ class TestRemoveWatchlist:
         r = client.delete(f"/api/watchlist/{item['id']}", headers=auth(body["access_token"]))
         assert r.status_code == 200
 
-        with patch("Routes.watchlist.get_markets", return_value=[]):
+        with patch("Utils.watchlist.get_markets", return_value=[]):
             r = client.get("/api/watchlist", headers=auth(body["access_token"]))
         assert r.json() == []
 
