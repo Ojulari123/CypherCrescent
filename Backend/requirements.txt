@@ -15,3 +15,4 @@ cloudinary
 slowapi
 redis
 coingecko-sdk
+resend

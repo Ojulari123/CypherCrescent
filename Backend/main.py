@@ -8,6 +8,9 @@ from Routes.market import market_router
 from Routes.dashboard import dashboard_router
 from Routes.watchlist import watchlist_router
 from Utils.rate_limit import limiter
+import logging                                                                                                                                                                                                                
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Cypher Crescent API")
 app.state.limiter = limiter

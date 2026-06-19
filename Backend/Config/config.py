@@ -13,11 +13,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
-    SMTP_HOST: str
-    SMTP_PORT: int
-    SMTP_USER: str
-    SMTP_PASSWORD: str
-    EMAIL_FROM: str = ""
+    RESEND_API_KEY: str
+    EMAIL_FROM: str = "CypherCrescent Onboarding <onboarding@resend.dev>"
     EMAIL_VERIFY_EXPIRE_MINUTES: int = 60
     PASSWORD_RESET_EXPIRE_MINUTES: int = 60
     OTP_EXPIRE_MINUTES: int = 10

@@ -1,30 +1,21 @@
 import logging
-import smtplib
-from email.message import EmailMessage
+import resend
 from Config.config import settings
 from Utils.email_token import create_email_verification_token
 from Utils.security import create_password_reset_token
 
+resend.api_key = settings.RESEND_API_KEY
 logger = logging.getLogger(__name__)
-
-def sender() -> str:
-    return settings.EMAIL_FROM or settings.SMTP_USER
 
 # Helper to send the emails
 def send(to_email: str, subject: str, html: str, text: str) -> None:
-    msg = EmailMessage()
-    msg["From"] = sender()
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.set_content(text)
-    msg.add_alternative(html, subtype="html")
-
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as smtp:
-        smtp.ehlo()
-        smtp.starttls()
-        smtp.ehlo()
-        smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        smtp.send_message(msg)
+    resend.Emails.send({
+        "from": settings.EMAIL_FROM,
+        "to": [to_email],
+        "subject": subject,
+        "html": html,
+        "text": text,
+    })
 
 # Brand tokens
 BRAND = "#3861fb"
