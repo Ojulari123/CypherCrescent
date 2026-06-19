@@ -1,20 +1,16 @@
 <script setup lang="ts">
-// Static aurora backdrop + a grid whose cells light up on hover. Colors are
-// written straight to the hovered node (event delegation on the grid, so it's
-// just two listeners regardless of cell count).
 const CELL = 46
 const count = ref(0)
 
 const colors = [
-  'rgba(56,189,248,0.95)', // sky-400
-  'rgba(167,139,250,0.95)', // violet-400
-  'rgba(34,211,238,0.90)', // cyan-400
-  'rgba(96,165,250,0.95)', // blue-400
-  'rgba(244,114,182,0.90)', // pink-400
+  'rgba(56,189,248,0.95)',
+  'rgba(167,139,250,0.95)',
+  'rgba(34,211,238,0.90)',
+  'rgba(96,165,250,0.95)',
+  'rgba(244,114,182,0.90)',
 ]
 
 function calc() {
-  // Oversize past the viewport so the slanted grid still covers every corner.
   const cols = Math.ceil((window.innerWidth * 1.7) / CELL) + 1
   const rows = Math.ceil((window.innerHeight * 1.7) / CELL) + 1
   count.value = cols * rows

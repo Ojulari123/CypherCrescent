@@ -2,13 +2,6 @@
 const market = useMarketStore()
 const watchlist = useWatchlistStore()
 
-// Auth is client-only, so the server can't know whether the visitor is logged in.
-// Painting this shell during SSR means a logged-out user hitting a protected URL
-// sees a flash of the dashboard before the client-side guard redirects them to
-// /login (the "sign-in page broken until refresh" symptom). Gate the shell on a
-// mounted flag: server and first hydration render agree on the neutral splash, so
-// there's no hydration mismatch, and the shell only appears once the client has
-// mounted — by which point the guard has already redirected anyone unauthenticated.
 const mounted = ref(false)
 
 // Bootstrap data shared across app pages (nav badge, global stats, holding modal coin list).

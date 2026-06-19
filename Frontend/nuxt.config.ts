@@ -9,14 +9,12 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  // Tailwind v4 via the official Vite plugin (config lives in main.css @theme).
   vite: {
     plugins: [tailwindcss()],
   },
 
   runtimeConfig: {
     public: {
-      // Override with NUXT_PUBLIC_API_BASE. Defaults to the local FastAPI server.
       apiBase: 'http://localhost:8000',
     },
   },
@@ -31,6 +29,12 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Track your crypto portfolio, holdings, watchlist and live market data.' },
       ],
       link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+      script: [
+        {
+          innerHTML: `(function(){var t=localStorage.getItem('cc_theme');if(t?t==='dark':true)document.documentElement.classList.add('dark')})()`,
+          type: 'text/javascript',
+        },
+      ],
     },
   },
 })
