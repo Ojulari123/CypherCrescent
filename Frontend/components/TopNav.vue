@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LayoutDashboard, TrendingUp, Star, Search, Sun, Moon, Bell, Plus, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
+import { Search, Sun, Moon, Plus, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,9 +10,9 @@ const watchlist = useWatchlistStore()
 const menuOpen = ref(false)
 
 const nav = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/markets', label: 'Markets', icon: TrendingUp },
-  { to: '/watchlist', label: 'Watchlist', icon: Star },
+  { to: '/', label: 'Dashboard' },
+  { to: '/markets', label: 'Markets' },
+  { to: '/watchlist', label: 'Watchlist' },
 ]
 
 function isActive(to: string) {
@@ -33,7 +33,7 @@ async function logout() {
 
 <template>
   <header class="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-md">
-    <div class="flex items-center gap-3 px-4 py-2.5 md:px-6">
+    <div class="flex items-center gap-4 px-4 py-2.5 md:px-6">
       <!-- brand (left) -->
       <NuxtLink to="/" class="flex flex-1 items-center gap-2">
         <svg viewBox="0 0 24 24" class="h-7 w-7" aria-hidden="true">
@@ -54,34 +54,29 @@ async function logout() {
           v-for="item in nav"
           :key="item.to"
           :to="item.to"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+          class="rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
           :class="isActive(item.to) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
         >
-          <component :is="item.icon" class="h-[18px] w-[18px]" />
           {{ item.label }}
-          <span v-if="item.to === '/watchlist' && watchlist.items.length" class="rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
+          <span v-if="item.to === '/watchlist' && watchlist.items.length" class="ml-1 rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
             {{ watchlist.items.length }}
           </span>
         </NuxtLink>
       </nav>
 
       <!-- actions (right) -->
-      <div class="flex flex-1 items-center justify-end gap-1.5">
+      <div class="flex flex-1 items-center justify-end gap-2">
         <div class="relative hidden lg:block">
           <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             v-model="query"
-            placeholder="Search by name or symbol…"
-            class="w-56 rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm outline-none transition-all focus:w-64 focus:ring-2 focus:ring-primary/20"
+            placeholder="Search by name or symbol"
+            class="w-64 rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm outline-none transition-all focus:w-72 focus:ring-2 focus:ring-primary/20"
           />
         </div>
         <button class="rounded-lg border border-border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground" aria-label="Toggle theme" @click="ui.toggleTheme()">
           <Sun v-if="ui.dark" class="h-[18px] w-[18px]" />
           <Moon v-else class="h-[18px] w-[18px]" />
-        </button>
-        <button class="relative rounded-lg border border-border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground" aria-label="Notifications">
-          <Bell class="h-[18px] w-[18px]" />
-          <span class="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-red-500" />
         </button>
         <button
           class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98]"
@@ -92,7 +87,7 @@ async function logout() {
 
         <!-- user menu -->
         <div class="relative">
-          <button class="flex items-center gap-1 rounded-lg p-0.5 transition-colors hover:bg-muted" @click="menuOpen = !menuOpen">
+          <button class="flex items-center gap-1.5 rounded-lg p-1 transition-colors hover:bg-muted" @click="menuOpen = !menuOpen">
             <img v-if="auth.user?.profile_photo_url" :src="auth.user.profile_photo_url" alt="Profile" class="h-8 w-8 rounded-full object-cover" />
             <span v-else class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-xs font-bold text-white">
               {{ auth.displayName.slice(0, 1).toUpperCase() }}
@@ -119,19 +114,19 @@ async function logout() {
     </div>
 
     <!-- mobile nav + search -->
-    <div class="flex items-center gap-2 border-t border-border px-4 py-2 md:hidden">
+    <div class="flex items-center gap-3 border-t border-border px-4 py-2 md:hidden">
       <NuxtLink
         v-for="item in nav"
         :key="item.to"
         :to="item.to"
-        class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
+        class="rounded-lg px-2.5 py-1.5 text-xs font-semibold"
         :class="isActive(item.to) ? 'bg-primary/10 text-primary' : 'text-muted-foreground'"
       >
-        <component :is="item.icon" class="h-4 w-4" />{{ item.label }}
+        {{ item.label }}
       </NuxtLink>
-      <div class="relative ml-auto min-w-0 flex-1 sm:max-w-[180px]">
+      <div class="relative ml-auto min-w-0 flex-1 sm:max-w-[220px]">
         <Search class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input v-model="query" placeholder="Search…" class="w-full rounded-lg border border-border bg-card py-1.5 pl-8 pr-2 text-xs outline-none focus:ring-2 focus:ring-primary/20" />
+        <input v-model="query" placeholder="Search by name or symbol" class="w-full rounded-lg border border-border bg-card py-1.5 pl-8 pr-2 text-xs outline-none focus:ring-2 focus:ring-primary/20" />
       </div>
     </div>
   </header>
