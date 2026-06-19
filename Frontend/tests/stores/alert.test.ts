@@ -224,6 +224,51 @@ describe('update', () => {
   })
 })
 
+// ── reactivate ────────────────────────────────────────────────────────────────
+
+describe('reactivate', () => {
+  it('posts to reactivate endpoint and updates item in list', async () => {
+    const auth = setupAuth()
+    vi.spyOn(auth, 'authFetch').mockResolvedValue({ ...RAW_TRIGGERED, triggered: false, triggered_at: null })
+
+    const store = useAlertStore()
+    store.items = [{ id: 2, coin_slug: 'ethereum', target_price: 3000, direction: 'below', triggered: true, triggered_at: '2026-06-15T12:00:00Z', created_at: '' }]
+
+    await store.reactivate(2)
+
+    expect(store.items[0].triggered).toBe(false)
+    expect(store.items[0].triggered_at).toBeNull()
+    expect(auth.authFetch).toHaveBeenCalledWith('/api/alerts/2/reactivate', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('leaves other items untouched', async () => {
+    const auth = setupAuth()
+    vi.spyOn(auth, 'authFetch').mockResolvedValue({ ...RAW_TRIGGERED, id: 2, triggered: false, triggered_at: null })
+
+    const store = useAlertStore()
+    store.items = [
+      { id: 1, coin_slug: 'bitcoin', target_price: 65000, direction: 'above', triggered: true, triggered_at: '2026-06-15T12:00:00Z', created_at: '' },
+      { id: 2, coin_slug: 'ethereum', target_price: 3000, direction: 'below', triggered: true, triggered_at: '2026-06-15T12:00:00Z', created_at: '' },
+    ]
+
+    await store.reactivate(2)
+
+    expect(store.items[0].triggered).toBe(true)  // item 1 unchanged
+    expect(store.items[1].triggered).toBe(false)  // item 2 reactivated
+  })
+
+  it('rethrows on API failure', async () => {
+    const auth = setupAuth()
+    vi.spyOn(auth, 'authFetch').mockRejectedValue({ data: { detail: 'You can have at most 10 active alerts' } })
+
+    const store = useAlertStore()
+    store.items = [{ id: 2, coin_slug: 'ethereum', target_price: 3000, direction: 'below', triggered: true, triggered_at: '2026-06-15T12:00:00Z', created_at: '' }]
+
+    await expect(store.reactivate(2)).rejects.toBeDefined()
+    expect(store.items[0].triggered).toBe(true)  // unchanged on failure
+  })
+})
+
 // ── remove ────────────────────────────────────────────────────────────────────
 
 describe('remove', () => {

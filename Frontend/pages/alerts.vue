@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bell, Plus, Trash2, Check, Loader2, Pencil } from 'lucide-vue-next'
+import { Bell, Plus, Trash2, Check, Loader2, Pencil, RotateCcw } from 'lucide-vue-next'
 import { fmtPrice, fmtDateTime } from '~/utils/format'
 import type { PriceAlert } from '~/types/api'
 
@@ -10,6 +10,7 @@ const ui = useUiStore()
 const showModal = ref(false)
 const editingAlert = ref<PriceAlert | null>(null)
 const deletingId = ref<number | null>(null)
+const reactivatingId = ref<number | null>(null)
 
 function openEdit(alert: PriceAlert) {
   editingAlert.value = alert
@@ -35,6 +36,18 @@ async function deleteAlert(alert: PriceAlert) {
     ui.toast('Could not delete alert')
   } finally {
     deletingId.value = null
+  }
+}
+
+async function reactivateAlert(alert: PriceAlert) {
+  reactivatingId.value = alert.id
+  try {
+    await alertStore.reactivate(alert.id)
+    ui.toast('Alert reactivated')
+  } catch (e: any) {
+    ui.toast(e?.data?.detail || 'Could not reactivate alert')
+  } finally {
+    reactivatingId.value = null
   }
 }
 
@@ -153,15 +166,27 @@ function coinLabel(slug: string) {
               </template>
             </p>
           </div>
-          <button
-            class="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:opacity-40"
-            :disabled="deletingId === alert.id"
-            aria-label="Delete alert"
-            @click="deleteAlert(alert)"
-          >
-            <Loader2 v-if="deletingId === alert.id" class="h-4 w-4 animate-spin" />
-            <Trash2 v-else class="h-4 w-4" />
-          </button>
+          <div class="flex shrink-0 items-center gap-1">
+            <button
+              class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-40"
+              :disabled="reactivatingId === alert.id || alertStore.activeCount >= 10"
+              :title="alertStore.activeCount >= 10 ? '10/10 limit reached' : 'Reactivate alert'"
+              aria-label="Reactivate alert"
+              @click="reactivateAlert(alert)"
+            >
+              <Loader2 v-if="reactivatingId === alert.id" class="h-4 w-4 animate-spin" />
+              <RotateCcw v-else class="h-4 w-4" />
+            </button>
+            <button
+              class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:opacity-40"
+              :disabled="deletingId === alert.id"
+              aria-label="Delete alert"
+              @click="deleteAlert(alert)"
+            >
+              <Loader2 v-if="deletingId === alert.id" class="h-4 w-4 animate-spin" />
+              <Trash2 v-else class="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </template>

@@ -297,6 +297,63 @@ class TestEditAlert:
         assert r.status_code == 401
 
 
+# ── Reactivate ────────────────────────────────────────────────────────────────
+
+class TestReactivateAlert:
+    def _trigger(self, alert_id):
+        db = TestSession()
+        db.query(PriceAlert).filter(PriceAlert.id == alert_id).update({"triggered": True, "triggered_at": "2026-06-01T00:00:00"})
+        db.commit()
+        db.close()
+
+    def test_reactivate_success(self, client):
+        body = register(client)
+        alert = create_alert(client, body["access_token"])
+        self._trigger(alert["id"])
+        r = client.post(f"/api/alerts/{alert['id']}/reactivate", headers=auth(body["access_token"]))
+        assert r.status_code == 200
+        data = r.json()
+        assert data["triggered"] is False
+        assert data["triggered_at"] is None
+
+    def test_reactivate_already_active_400(self, client):
+        body = register(client)
+        alert = create_alert(client, body["access_token"])
+        r = client.post(f"/api/alerts/{alert['id']}/reactivate", headers=auth(body["access_token"]))
+        assert r.status_code == 400
+        assert "already active" in r.json()["detail"]
+
+    def test_reactivate_enforces_limit(self, client):
+        body = register(client)
+        # Create 10 active + 1 triggered
+        for i in range(10):
+            create_alert(client, body["access_token"], target_price=1000 + i)
+        extra = create_alert(client, body["access_token"], target_price=999)
+        self._trigger(extra["id"])
+        # All 10 slots now taken by active — reactivate should fail
+        # First mark extra as triggered but the 10 active remain
+        r = client.post(f"/api/alerts/{extra['id']}/reactivate", headers=auth(body["access_token"]))
+        assert r.status_code == 400
+        assert "10" in r.json()["detail"]
+
+    def test_reactivate_missing_404(self, client):
+        body = register(client)
+        r = client.post("/api/alerts/9999/reactivate", headers=auth(body["access_token"]))
+        assert r.status_code == 404
+
+    def test_cannot_reactivate_another_users_alert(self, client):
+        alice = register(client)
+        alert = create_alert(client, alice["access_token"])
+        self._trigger(alert["id"])
+        bob = register(client, OTHER_USER)
+        r = client.post(f"/api/alerts/{alert['id']}/reactivate", headers=auth(bob["access_token"]))
+        assert r.status_code == 404
+
+    def test_reactivate_unauthenticated_401(self, client):
+        r = client.post("/api/alerts/1/reactivate")
+        assert r.status_code == 401
+
+
 # ── Delete ────────────────────────────────────────────────────────────────────
 
 class TestDeleteAlert:

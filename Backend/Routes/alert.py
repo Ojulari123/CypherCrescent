@@ -48,6 +48,22 @@ def update_alert(alert_id: int, payload: AlertUpdate, db: Session = Depends(get_
     db.refresh(alert)
     return AlertResponse.model_validate(alert)
 
+@alert_router.post("/{alert_id}/reactivate", response_model=AlertResponse, status_code=status.HTTP_200_OK)
+def reactivate_alert(alert_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    alert = db.query(PriceAlert).filter(PriceAlert.id == alert_id, PriceAlert.user_id == current_user.id).first()
+    if not alert:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+    if not alert.triggered:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Alert is already active")
+    active_count = db.query(PriceAlert).filter(PriceAlert.user_id == current_user.id, PriceAlert.triggered == False).count()
+    if active_count >= ALERT_LIMIT:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"You can have at most {ALERT_LIMIT} active alerts. Delete one to reactivate this alert.")
+    alert.triggered = False
+    alert.triggered_at = None
+    db.commit()
+    db.refresh(alert)
+    return AlertResponse.model_validate(alert)
+
 @alert_router.delete("/{alert_id}", status_code=status.HTTP_200_OK)
 def delete_alert(alert_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     alert = db.query(PriceAlert).filter(PriceAlert.id == alert_id, PriceAlert.user_id == current_user.id).first()

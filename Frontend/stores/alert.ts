@@ -73,6 +73,13 @@ export const useAlertStore = defineStore('alert', {
       if (idx !== -1) this.items[idx] = mapAlert(raw)
     },
 
+    async reactivate(id: number) {
+      const auth = useAuthStore()
+      const raw = await auth.authFetch<any>(`/api/alerts/${id}/reactivate`, { method: 'POST' })
+      const idx = this.items.findIndex((a) => a.id === id)
+      if (idx !== -1) this.items[idx] = mapAlert(raw)
+    },
+
     async remove(id: number) {
       const auth = useAuthStore()
       await auth.authFetch(`/api/alerts/${id}`, { method: 'DELETE' })
