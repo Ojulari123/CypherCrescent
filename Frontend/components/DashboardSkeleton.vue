@@ -1,5 +1,4 @@
-<!-- Loading placeholder for the dashboard. Mirrors index.vue: stat cards row,
-     chart + allocation row, and the holdings table. -->
+<!-- Loading placeholder for the dashboard -->
 <template>
   <div class="space-y-5">
     <!-- stat cards -->

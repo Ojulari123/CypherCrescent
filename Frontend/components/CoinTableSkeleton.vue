@@ -1,5 +1,4 @@
-<!-- Loading placeholder for CoinTable (markets + watchlist). Mirrors the real
-     table's column rhythm so the layout doesn't jump when data arrives. -->
+<!-- Loading placeholder for CoinTable, so the layout doesn't jump when data arrives. -->
 <script setup lang="ts">
 withDefaults(defineProps<{ rows?: number }>(), { rows: 10 })
 </script>

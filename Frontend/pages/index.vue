@@ -203,7 +203,7 @@ onMounted(refresh)
                   <span v-if="h.pl != null" class="block text-xs tabular-nums" :style="{ color: h.pl >= 0 ? UP : DOWN }">{{ h.pl >= 0 ? '+' : '' }}{{ fmtUsd(h.pl) }}</span>
                 </td>
                 <td class="px-5 py-3">
-                  <div class="flex justify-end gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                  <div class="flex justify-end gap-1 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
                     <button class="rounded-lg bg-muted p-1.5 transition-colors hover:bg-primary hover:text-primary-foreground" aria-label="Edit" @click="ui.openEditHolding(h)"><Pencil class="h-3.5 w-3.5" /></button>
                     <button class="rounded-lg bg-muted p-1.5 transition-colors hover:bg-red-500 hover:text-white" aria-label="Delete" @click="ui.askDeleteHolding(h.id)"><Trash2 class="h-3.5 w-3.5" /></button>
                   </div>

@@ -34,7 +34,7 @@ async function logout() {
 <template>
   <header class="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-md">
     <div class="flex items-center gap-4 px-4 py-2.5 md:px-6">
-      <!-- brand (left) -->
+      <!-- brand -->
       <NuxtLink to="/" class="flex flex-1 items-center gap-2">
         <svg viewBox="0 0 24 24" class="h-7 w-7" aria-hidden="true">
           <mask id="cc-nav">
@@ -48,7 +48,7 @@ async function logout() {
         <span class="hidden text-sm font-bold sm:block">Cypher Crescent</span>
       </NuxtLink>
 
-      <!-- nav (centered) -->
+      <!-- nav -->
       <nav class="hidden items-center gap-1 md:flex">
         <NuxtLink
           v-for="item in nav"
@@ -64,7 +64,7 @@ async function logout() {
         </NuxtLink>
       </nav>
 
-      <!-- actions (right) -->
+      <!-- actions -->
       <div class="flex flex-1 items-center justify-end gap-2">
         <div class="relative hidden lg:block">
           <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -82,13 +82,13 @@ async function logout() {
           class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98]"
           @click="ui.openAddHolding()"
         >
-          <Plus class="h-4 w-4" /> <span class="hidden sm:inline">Add holding</span>
+          <Plus class="h-4 w-4" /> <span class="hidden xl:inline">Add holding</span>
         </button>
 
         <!-- user menu -->
         <div class="relative">
           <button class="flex items-center gap-1.5 rounded-lg p-1 transition-colors hover:bg-muted" @click="menuOpen = !menuOpen">
-            <img v-if="auth.user?.profile_photo_url" :src="auth.user.profile_photo_url" alt="Profile" class="h-8 w-8 rounded-full object-cover" />
+            <img v-if="auth.user?.profile_photo_url" :src="auth.user.profile_photo_url" alt="Profile" class="h-8 w-8 shrink-0 aspect-square rounded-full object-cover" />
             <span v-else class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-xs font-bold text-white">
               {{ auth.displayName.slice(0, 1).toUpperCase() }}
             </span>
