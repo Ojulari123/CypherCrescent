@@ -39,7 +39,7 @@ async function saveProfile() {
   }
 }
 
-// Pick a file → open the cropper. The actual upload happens on crop-confirm.
+// Pick a file → open the cropper
 function onPhotoPicked(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (fileInput.value) fileInput.value.value = ''
