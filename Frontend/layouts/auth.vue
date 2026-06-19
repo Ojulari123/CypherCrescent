@@ -41,23 +41,23 @@ onBeforeUnmount(() => window.removeEventListener('resize', calc))
 </script>
 
 <template>
-  <div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#0a1020] px-4 py-10 text-white">
+  <div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#0a1020] px-4 py-10 text-white" style="display:flex;min-height:100vh;align-items:center;justify-content:center">
     <!-- aurora mesh: soft colored glows drifting slowly behind everything -->
-    <div class="pointer-events-none absolute inset-0">
+    <div class="pointer-events-none absolute inset-0" style="position:absolute;inset:0">
       <div class="cc-blob cc-blob-1" />
       <div class="cc-blob cc-blob-2" />
       <div class="cc-blob cc-blob-3" />
     </div>
 
     <!-- interactive grid: hover a cell to light it up -->
-    <div class="cc-grid absolute" @mouseover="paint" @mouseout="unpaint">
+    <div class="cc-grid absolute" style="position:absolute" @mouseover="paint" @mouseout="unpaint">
       <div v-for="i in count" :key="i" class="cc-cell" />
     </div>
 
     <!-- vignette to deepen the corners and focus the card -->
-    <div class="pointer-events-none absolute inset-0" style="background: radial-gradient(ellipse at center, transparent 40%, rgba(4,7,18,0.65) 100%)" />
+    <div class="pointer-events-none absolute inset-0" style="position:absolute;inset:0;background: radial-gradient(ellipse at center, transparent 40%, rgba(4,7,18,0.65) 100%)" />
 
-    <div class="relative z-10 w-full max-w-md">
+    <div class="relative z-10 w-full max-w-md" style="position:relative;width:100%;max-width:28rem">
       <!-- brand -->
       <div class="mb-6 flex items-center justify-center gap-2.5">
         <svg viewBox="0 0 24 24" class="h-9 w-9" aria-hidden="true">
