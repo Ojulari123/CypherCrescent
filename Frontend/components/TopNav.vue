@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Search, Sun, Moon, Plus, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
+import { Search, Sun, Moon, Plus, ChevronDown, Settings, LogOut, Bell } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const ui = useUiStore()
 const auth = useAuthStore()
 const watchlist = useWatchlistStore()
+const alerts = useAlertStore()
 
 const menuOpen = ref(false)
 
@@ -13,6 +14,7 @@ const nav = [
   { to: '/', label: 'Dashboard' },
   { to: '/markets', label: 'Markets' },
   { to: '/watchlist', label: 'Watchlist' },
+  { to: '/alerts', label: 'Alerts' },
 ]
 
 function isActive(to: string) {
@@ -60,6 +62,9 @@ async function logout() {
           {{ item.label }}
           <span v-if="item.to === '/watchlist' && watchlist.items.length" class="ml-1 rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
             {{ watchlist.items.length }}
+          </span>
+          <span v-if="item.to === '/alerts' && alerts.activeCount" class="ml-1 rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
+            {{ alerts.activeCount }}
           </span>
         </NuxtLink>
       </nav>
@@ -119,10 +124,13 @@ async function logout() {
         v-for="item in nav"
         :key="item.to"
         :to="item.to"
-        class="rounded-lg px-2.5 py-1.5 text-xs font-semibold"
+        class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
         :class="isActive(item.to) ? 'bg-primary/10 text-primary' : 'text-muted-foreground'"
       >
         {{ item.label }}
+        <span v-if="item.to === '/alerts' && alerts.activeCount" class="rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
+          {{ alerts.activeCount }}
+        </span>
       </NuxtLink>
       <div class="relative ml-auto min-w-0 flex-1 sm:max-w-[220px]">
         <Search class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />

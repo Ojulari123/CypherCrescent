@@ -17,7 +17,7 @@ def send(to_email: str, subject: str, html: str, text: str) -> None:
         "text": text,
     })
 
-# Brand tokens
+# Site colors
 BRAND = "#3861fb"
 INK = "#0f172a"        # headings
 BODY = "#475569"       # paragraph text
@@ -26,7 +26,6 @@ LINE = "#e6e9f4"       # hairline borders
 PAGE_BG = "#eef2fb"    # outer canvas
 SOFT = "#f4f6fc"       # inset boxes
 FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
-
 
 def base_template(title: str, preheader: str, body_html: str) -> str:
     return f"""<!DOCTYPE html>
@@ -98,7 +97,6 @@ def button(href: str, label: str) -> str:
       </table>
     """
 
-
 def fallback_link(href: str) -> str:
     return f"""
       <p style="margin:24px 0 8px 0;font-size:13px;color:{MUTE};">Or paste this link into your browser:</p>
@@ -109,18 +107,14 @@ def fallback_link(href: str) -> str:
       </table>
     """
 
-
 def heading(text: str) -> str:
     return f'<h1 style="margin:0 0 14px 0;font-size:22px;line-height:1.3;font-weight:700;color:{INK};letter-spacing:-0.01em;">{text}</h1>'
-
 
 def paragraph(text: str) -> str:
     return f'<p style="margin:0 0 14px 0;font-size:15px;line-height:1.65;color:{BODY};">{text}</p>'
 
-
 def note(text: str) -> str:
     return f'<p style="margin:24px 0 0 0;font-size:13px;line-height:1.6;color:{MUTE};">{text}</p>'
-
 
 def send_verification_email(to_email: str, first_name: str, token: str) -> None:
     verify_url = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}"
@@ -153,7 +147,6 @@ def send_verification_email(to_email: str, first_name: str, token: str) -> None:
         ),
         text=text,
     )
-
 
 def send_password_reset_email(to_email: str, first_name: str, token: str) -> None:
     reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
@@ -189,7 +182,6 @@ def send_password_reset_email(to_email: str, first_name: str, token: str) -> Non
         ),
         text=text,
     )
-
 
 def send_two_factor_code_email(to_email: str, first_name: str, code: str, action: str) -> None:
     code_block = f"""
@@ -251,3 +243,99 @@ def send_password_reset(email: str, first_name: str, token_version: int = 0) -> 
         send_password_reset_email(email, first_name, token)
     except Exception as e:
         logger.exception("Failed to send reset email to %s: %s", email, e)
+
+def _fmt_price(p: float) -> str:
+    """Smart price formatting: fewer decimals for large coins, more for micro-caps."""
+    if p >= 1_000:
+        return f"${p:,.2f}"
+    if p >= 1:
+        return f"${p:,.4f}"
+    return f"${p:,.6f}"
+
+
+def send_price_alert_email(
+    to_email: str,
+    first_name: str,
+    coin_name: str,
+    coin_slug: str,
+    direction: str,
+    target_price: float,
+    current_price: float,
+) -> None:
+    is_above = direction == "above"
+    arrow       = "↑" if is_above else "↓"
+    direction_label = "risen above" if is_above else "fallen below"
+    accent      = "#16a34a" if is_above else "#dc2626"   # green / red
+    accent_bg   = "#f0fdf4" if is_above else "#fef2f2"
+    accent_line = "#bbf7d0" if is_above else "#fecaca"
+    badge_label = "ABOVE TARGET" if is_above else "BELOW TARGET"
+
+    coin_url = f"{settings.FRONTEND_URL.rstrip('/')}/coins/{coin_slug}"
+
+    fmt_current = _fmt_price(current_price)
+    fmt_target  = _fmt_price(target_price)
+
+    price_block = f"""
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;width:100%;">
+        <tr>
+          <td style="background:{accent_bg};border:1px solid {accent_line};border-radius:14px;padding:24px;">
+            <!-- badge -->
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:18px;">
+              <tr>
+                <td style="background:{accent};border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#ffffff;font-family:{FONT};">
+                  {arrow} {badge_label}
+                </td>
+              </tr>
+            </table>
+            <!-- prices -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td width="48%" style="border-right:1px solid {accent_line};padding-right:20px;">
+                  <p style="margin:0 0 4px 0;font-size:12px;font-weight:600;color:{accent};text-transform:uppercase;letter-spacing:0.05em;">Current price</p>
+                  <p style="margin:0;font-size:28px;font-weight:700;color:{INK};font-family:'SFMono-Regular',Consolas,Menlo,monospace;">{fmt_current}</p>
+                </td>
+                <td width="4%">&nbsp;</td>
+                <td width="48%" style="padding-left:20px;">
+                  <p style="margin:0 0 4px 0;font-size:12px;font-weight:600;color:{MUTE};text-transform:uppercase;letter-spacing:0.05em;">Your target</p>
+                  <p style="margin:0;font-size:28px;font-weight:700;color:{MUTE};font-family:'SFMono-Regular',Consolas,Menlo,monospace;">{fmt_target}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    """
+
+    body = (
+        heading(f"Your {coin_name} alert fired 🔔")
+        + paragraph(
+            f"Hi {first_name} — <strong>{coin_name}</strong> has {direction_label} your target of "
+            f"<strong>{fmt_target}</strong>. The current market price is <strong>{fmt_current}</strong>."
+        )
+        + price_block
+        + button(coin_url, f"View {coin_name}")
+        + note(
+            "This alert has been marked as triggered and no longer counts toward your 10-alert limit. "
+            "Head to your alerts page to set a new one."
+        )
+    )
+
+    text = (
+        f"Hi {first_name},\n\n"
+        f"{arrow} {coin_name} price alert triggered.\n\n"
+        f"Current price: {fmt_current}\n"
+        f"Your target:   {fmt_target} ({direction})\n\n"
+        f"View on Cypher Crescent: {coin_url}\n\n"
+        f"This alert has been marked as triggered. You can set a new one from the alerts page.\n"
+    )
+
+    send(
+        to_email=to_email,
+        subject=f"{arrow} {coin_name} hit {fmt_current} · Cypher Crescent",
+        html=base_template(
+            title="Price alert triggered",
+            preheader=f"{coin_name} has {direction_label} your target of {fmt_target}.",
+            body_html=body,
+        ),
+        text=text,
+    )

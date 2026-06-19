@@ -13,6 +13,7 @@ from Routes.holding import holding_router
 from Routes.market import market_router
 from Routes.dashboard import dashboard_router
 from Routes.watchlist import watchlist_router
+from Routes.alert import alert_router
 from Utils.rate_limit import limiter
 
 os.environ.setdefault("NPGUSER", "test")
@@ -21,10 +22,7 @@ os.environ.setdefault("NPGDB", "test")
 os.environ.setdefault("NPGHOST", "localhost")
 os.environ.setdefault("NPGPORT", "5432")
 os.environ.setdefault("JWT_SECRET", "test-secret-do-not-use-in-prod-1234567890")
-os.environ.setdefault("SMTP_HOST", "smtp.test")
-os.environ.setdefault("SMTP_PORT", "587")
-os.environ.setdefault("SMTP_USER", "test@example.com")
-os.environ.setdefault("SMTP_PASSWORD", "x")
+os.environ.setdefault("RESEND_API_KEY", "re_test_key")
 os.environ.setdefault("EMAIL_FROM", "test@example.com")
 os.environ.setdefault("CLOUDINARY_CLOUD_NAME", "x")
 os.environ.setdefault("CLOUDINARY_API_KEY", "x")
@@ -78,6 +76,7 @@ def client():
     app.include_router(market_router, prefix="/api/market")
     app.include_router(dashboard_router, prefix="/api/dashboard")
     app.include_router(watchlist_router, prefix="/api/watchlist")
+    app.include_router(alert_router, prefix="/api/alerts")
 
     with TestClient(app) as c:
         yield c

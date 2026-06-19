@@ -116,6 +116,16 @@ export interface CoinSearchResult {
   market_cap_rank?: number | null
 }
 
+export interface PriceAlert {
+  id: number
+  coin_slug: string
+  target_price: number
+  direction: 'above' | 'below'
+  triggered: boolean
+  triggered_at: string | null
+  created_at: string
+}
+
 export interface WatchlistItem {
   id: number
   coin_slug: string

@@ -6,20 +6,45 @@ A full-stack cryptocurrency portfolio tracker. Users register, record the coins 
 
 ## Features
 
-| Area | What it does |
-|------|--------------|
-| **Authentication** | Register, login, JWT-protected routes, email verification, password reset, change password, logout (token invalidation)
-| **Holdings** | Add / view / update / delete holdings, scoped per user, with coin-id validation against CoinGecko 
-| **Market data** | Live price, market cap, 24h change, name & symbol for any coins
-| **Dashboard** | Total portfolio value, total cost, total P/L (%), top & worst performer 
-| **Watchlist** | Add / remove / view watched coins, enriched with live market data
-| **Historical chart** | Price history for 24h / 7d / 30d windows
-| **Profile** | Update profile, upload/delete profile photo (Cloudinary)
-| **Account activity** | View a log of security events (register, login, password change, 2FA changes, logout)
+### Authentication & Security
+- **JWT auth** with short-lived access tokens and long-lived refresh tokens — auto-refreshed silently in the background, no re-login until the refresh token expires
+- **Refresh token rotation with reuse detection** — replaying a used token revokes the entire session across all devices
+- **Email 2FA (opt-in)**
+- **Email verification** on register; forgot-password / reset-password flow with time-limited tokens (regardless of 2FA)
+- **Account activity log** — every security event (login, password change, 2FA toggle, logout) is recorded with IP + user-agent
+- **Price Alert Functionality**
 
-**Bonus / extras implemented:** Redis caching of CoinGecko responses, unit tests (133), request rate limiting (SlowAPI), database migrations (Alembic).
+### Portfolio Management
+- Add, edit, and delete coin holdings with quantity and buy price
+- Dashboard shows total value, total cost, unrealised P&L (amount + %) and highlights the top and worst performers
+- **Per-holding P&L** calculated live from current market price(values update whenever the market store refreshes)
+- **Allocation breakdown** visualised as a donut chart
+- **Performance area chart** across time on the dashboard
 
----
+### Market Data
+- Live prices, market cap, 24h % change, rank, and symbol pulled from **CoinGecko API**
+- Markets page is **searchable, sortable, and paginated** with smooth skeleton loading between pages
+- **Historical price charts** for 24h / 7d / 30d windows
+- **Coin detail page** with full market stats, your position, price alerts, and a coin ↔ USD live converter
+
+### Watchlist
+- Star any coin to add it to your watchlist; unstar to remove(automatic rollback on failure)
+- Watchlist items have live market data (price, 24h change) from the market cache
+
+### Performance & UX
+- **Redis caching** of all CoinGecko responses with configurable TTLs (market data 60s, search 600s, charts 300s)
+- **Skeleton loading states** - No blank flashes during data fetches
+- **Responsive design** — fully usable on mobile, tablet, and desktop; nav collapses to a bottom bar on small screens
+- **Real-time updates** on watchlist and holdings. The UI reflects changes instantly while the API call is in flight
+- **Debounced coin search** across markets and alert creation; avoids hammering the API on every keystroke
+- **Rate limiting** (SlowAPI) on auth endpoints — 5 req/min per client
+
+### Testing
+- **133 backend tests** covering every endpoint — authentication, holdings, market, watchlist, alerts, profile, 2FA, activity log
+- **101 frontend unit tests** (Vitest) — all 5 Pinia stores and 2 core components fully covered
+- Backend suite uses in-memory SQLite and mocks all external IO (CoinGecko, Redis, Cloudinary, email) — no services needed to run tests
+- Frontend tests use `happy-dom` and manual store stubs — no Nuxt runtime required
+
 
 ## Tech stack
 
@@ -32,7 +57,7 @@ A full-stack cryptocurrency portfolio tracker. Users register, record the coins 
 - **Caching:** Redis
 - **Rate limiting:** SlowAPI
 - **Media:** Cloudinary (profile photos)
-- **Email:** SMTP (verification + password reset)
+- **Email:** Resend (verification, password reset, 2FA codes)
 - **Validation/config:** Pydantic v2 + pydantic-settings
 
 ---
@@ -56,12 +81,14 @@ CypherCrescent/
     │   ├── holding.py        # portfolio CRUD
     │   ├── market.py         # market data, search, historical chart
     │   ├── dashboard.py      # portfolio aggregates
-    │   └── watchlist.py      # watchlist CRUD
+    │   ├── watchlist.py      # watchlist CRUD
+    │   └── alert.py          # price alerts CRUD + PATCH edit
     ├── Schemas/              # Pydantic enums/request/response models
     │   ├── userSchema.py
     │   ├── holdingSchema.py
     │   ├── marketSchema.py
-    │   └── watchlistSchema.py
+    │   ├── watchlistSchema.py
+    │   └── alertSchema.py
     ├── Utils/                # helpers (security, coingecko, redis_cache, email, etc.)
     └── Tests/                # pytest suite (in-memory SQLite, mocked external IO)
 ```
@@ -77,7 +104,7 @@ CypherCrescent/
 - A running Redis instance
 - A [CoinGecko API key](https://www.coingecko.com/en/api) (demo key works)
 - A Cloudinary account (for profile photos)
-- SMTP credentials (for verification & password-reset emails)
+- A [Resend](https://resend.com) API key (for verification & password-reset emails)
 
 ### Environment variables
 
@@ -94,11 +121,8 @@ Create a `.env` file inside `Backend/`
 | `JWT_ALGORITHM`| `HS256` | JWT signing algorithm |
 | `ACCESS_TOKEN_EXPIRE_MINUTES`| `60` | Access-token lifetime (minutes) |
 | `REFRESH_TOKEN_EXPIRE_DAYS`| `30` | Refresh-token lifetime (days) |
-| `SMTP_HOST` | — | SMTP server host |
-| `SMTP_PORT` | — | SMTP server port |
-| `SMTP_USER` | — | SMTP username |
-| `SMTP_PASSWORD` | — | SMTP password |
-| `EMAIL_FROM` | `""` | From-address for outgoing email |
+| `RESEND_API_KEY` | — | Resend API key for transactional email |
+| `EMAIL_FROM` | `CypherCrescent <onboarding@resend.dev>` | From-address for outgoing email |
 | `EMAIL_VERIFY_EXPIRE_MINUTES` |`60` | Email-verification token lifetime |
 | `PASSWORD_RESET_EXPIRE_MINUTES` | `60` | Password-reset token lifetime |
 | `OTP_EXPIRE_MINUTES` | `10` | Email 2FA / verification-code lifetime |
@@ -123,11 +147,8 @@ NPGPORT=5432
 
 JWT_SECRET=replace-with-a-long-random-string
 
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=you@example.com
-SMTP_PASSWORD=your-app-password
-EMAIL_FROM=you@example.com
+RESEND_API_KEY=re_your_key_here
+EMAIL_FROM=CypherCrescent <onboarding@resend.dev>
 
 CYPHER_CRESCENT_CLOUDINARY_CLOUD_NAME=your-cloud
 CYPHER_CRESCENT_CLOUDINARY_API_KEY=your-key
@@ -176,39 +197,10 @@ The suite uses an in-memory SQLite database and mocks all external IO (CoinGecko
 
 ```bash
 cd Backend
-pytest            # run everything (133 tests)
+pytest            # run everything (168 tests)
 pytest -v         # verbose
 pytest Tests/test_watchlist.py    # a single file
 ```
-
----
-
-## Authentication
-
-- Passwords are hashed with **bcrypt**; minimum length is **8 characters**.
-- On **register** and **login** the API returns a **JWT access token** plus the user object.
-- Send the token on protected requests:
-  ```
-  Authorization: Bearer <access_token>
-  ```
-- Login/register return a short-lived **access token** (`ACCESS_TOKEN_EXPIRE_MINUTES`, default 60) plus a long-lived **refresh token** (`REFRESH_TOKEN_EXPIRE_DAYS`, default 30). Send the access token on requests; when it expires, `POST /api/users/refresh` with `{ "refresh_token": ... }` returns a fresh pair — no re-login (and no 2FA) needed until the refresh token itself expires or is revoked.
-- Access and refresh tokens are distinguished by a `type` claim; a refresh token can't be used as an access token (or vice versa).
-- **Refresh tokens rotate with reuse detection.** Each refresh belongs to a session (tracked in Redis); calling `/refresh` issues a new token and invalidates the old one. If an already-used (e.g. stolen) refresh token is replayed, the whole session is revoked and that user must log in again. (Refresh therefore requires Redis to be available.)
-- **Logout** bumps the user's token version, invalidating previously issued tokens. `POST /api/users/logout-all` does the same explicitly (signs out every device).
-- A verification email is sent on registration; password reset is a request → email token → confirm flow.
-- Auth endpoints are **rate-limited** to 5 requests/minute per client.
-
-### Email two-factor authentication (2FA)
-
-- **Opt-in** per user, off by default. Enable: `POST /api/users/2fa/enable` → emailed 6-digit code → `POST /api/users/2fa/enable/confirm`. Disable mirrors it under `/2fa/disable`.
-- With 2FA on, **login is two-step**: `POST /api/users/login` returns `{ "two_factor_required": true, "challenge_token": ... }` and emails a code; exchange both at `POST /api/users/2fa/verify` for the access token.
-- **Changing your password always requires an emailed code**, regardless of the 2FA setting: `PUT /api/users/me/password` (verifies current/new, sends code) → `PUT /api/users/me/password/verify` (`code` + `new_password`).
-- Codes are 6 digits, single-use, expire after `OTP_EXPIRE_MINUTES`, capped at 5 attempts, and stored in Redis — so 2FA login and password changes require Redis to be available.
-
-### Account activity
-
-- `GET /api/users/activity` returns your 100 most recent security events (register, login, password change/reset, 2FA enable/disable, logout, email change), newest first, each with the IP and user-agent it came from.
-- Recording is **best-effort** — a logging failure never blocks the action itself.
 
 ---
 
@@ -229,6 +221,108 @@ Interactive, auto-generated docs are available while the server runs:
 - **OpenAPI schema:** http://localhost:8000/openapi.json
 
 Use the **Authorize** button in Swagger (via `/api/users/token`) to call protected endpoints.
+
+---
+
+## Frontend
+
+### Tech stack
+
+| | |
+|---|---|
+| **Framework** | Nuxt 3 |
+| **UI language** | Vue 3 + TypeScript |
+| **Styling** | Tailwind CSS v4 |
+| **State management** | Pinia |
+| **Icons** | Lucide Vue Next |
+| **Utilities** | VueUse |
+
+### Pages
+
+| Page | Route | Description |
+|------|-------|-------------|
+| Dashboard | `/` | Portfolio stat cards, area chart, donut allocation, sortable holdings table |
+| Markets | `/markets` | Live coin prices |
+| Watchlist | `/watchlist` | Starred coins with live market data |
+| Coin detail | `/coins/:id` | Full coin page with 24h / 7d / 30d price chart, active alerts panel, coin ↔ USD converter |
+| Price Alerts | `/alerts` | Manage all price alerts; active and triggered history, create / edit / delete |
+| Settings | `/settings` | Profile info, photo upload, email verification, password change, 2FA, activity log |
+| Login | `/login` | JWT login |
+| Register | `/register` | Account creation |
+| Forgot / Reset password | `/forgot-password`, `/reset-password` | Email-token password reset flow |
+| Verify email | `/verify-email` | Email verification landing page |
+
+### State management (Pinia stores)
+
+| Store | Responsibility |
+|-------|---------------|
+| `auth` | User session, tokens, login / logout / register |
+| `portfolio` | Holdings, dashboard aggregates, performance chart series |
+| `market` | Top coins, search results, coin data cache |
+| `watchlist` | Watched coins with live market data |
+| `alert` | Price alerts — load, create, update, delete; active / triggered getters, per-coin helpers |
+| `ui` | Theme, global search query, modal state, toasts |
+
+### Environment variables
+
+Create a `.env` file inside `Frontend/`:
+
+```env
+NUXT_PUBLIC_API_BASE=http://localhost:8000
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NUXT_PUBLIC_API_BASE` | `http://localhost:8000` | Backend API base URL — set to your deployed backend in production |
+
+### Install & run
+
+```bash
+cd Frontend
+
+# 1. install dependencies
+npm install
+
+# 2. create .env (see above)
+
+# 3. generate Nuxt types
+npx nuxi prepare
+
+# 4. start dev server
+npm run dev
+```
+
+```bash
+# build for production
+npm run build
+npm run preview
+```
+
+### Project structure
+
+```
+Frontend/
+├── app.vue                  # root component
+├── nuxt.config.ts           # Nuxt config — SPA mode, Tailwind, runtime config
+├── pages/                   # file-based routing
+│   ├── index.vue            # Dashboard
+│   ├── markets.vue          # Markets
+│   ├── watchlist.vue        # Watchlist
+│   ├── settings.vue         # Settings
+│   ├── coins/[id].vue       # Coin detail
+│   ├── login.vue
+│   ├── register.vue
+│   ├── forgot-password.vue
+│   ├── reset-password.vue
+│   └── verify-email.vue
+├── components/              # reusable UI components
+├── stores/                  # Pinia stores (auth, portfolio, market, watchlist, alert, ui)
+├── layouts/                 # default (app shell) + auth layouts
+├── middleware/              # route guards
+├── utils/                   # format helpers, coin utilities
+├── types/                   # TypeScript type definitions
+└── assets/css/main.css      # global styles + Tailwind entry
+```
 
 ---
 

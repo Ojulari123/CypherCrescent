@@ -34,6 +34,7 @@ class User(Base):
     holdings = relationship("Holding", back_populates="user", cascade="all, delete-orphan")
     watchlist = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
     activity_logs = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")
+    price_alerts = relationship("PriceAlert", back_populates="user", cascade="all, delete-orphan")
 
 class Holding(Base):
     __tablename__ = "holdings"
@@ -65,6 +66,21 @@ class Watchlist(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "coin_slug", name="uq_watchlist_user_coin"),
     )
+
+class PriceAlert(Base):
+    __tablename__ = "price_alerts"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    coin_slug = Column(String(100), nullable=False)
+    target_price = Column(Numeric(24, 12), nullable=False)
+    direction = Column(String(5), nullable=False)  # "above" | "below"
+    triggered = Column(Boolean, nullable=False, default=False, server_default="false")
+    triggered_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="price_alerts")
+
 
 class ActivityLog(Base):
     __tablename__ = "activity_log"

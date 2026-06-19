@@ -7,14 +7,21 @@ from Routes.holding import holding_router
 from Routes.market import market_router
 from Routes.dashboard import dashboard_router
 from Routes.watchlist import watchlist_router
+from Routes.alert import alert_router
 from Utils.rate_limit import limiter
-import logging                                                                                                                                                                                                                
+from Utils.alert_checker import check_price_alerts
+from apscheduler.schedulers.background import BackgroundScheduler
+import logging
 
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Cypher Crescent API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(check_price_alerts, "interval", minutes=5)
+scheduler.start()
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,3 +45,4 @@ app.include_router(holding_router, prefix="/api/holdings", tags=["Holdings"])
 app.include_router(market_router, prefix="/api/market", tags=["Market"])
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(watchlist_router, prefix="/api/watchlist", tags=["Watchlist"])
+app.include_router(alert_router, prefix="/api/alerts", tags=["Alerts"])

@@ -16,3 +16,4 @@ slowapi
 redis
 coingecko-sdk
 resend
+apscheduler

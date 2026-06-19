@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Star, Plus, Pencil, Trash2, ArrowRightLeft, Loader2 } from 'lucide-vue-next'
+import { ChevronRight, Star, Plus, Pencil, Trash2, ArrowRightLeft, Loader2, Bell, X } from 'lucide-vue-next'
 import { fmtUsd, fmtPrice, fmtNum, fmtCompact, UP, DOWN } from '~/utils/format'
 import { RANGES, RANGE_LABEL } from '~/utils/coins'
 
@@ -7,6 +7,7 @@ const route = useRoute()
 const market = useMarketStore()
 const portfolio = usePortfolioStore()
 const watchlist = useWatchlistStore()
+const alertStore = useAlertStore()
 const ui = useUiStore()
 
 const slug = computed(() => String(route.params.id))
@@ -14,10 +15,13 @@ const range = ref<'24h' | '7d' | '30d'>('7d')
 const points = ref<number[]>([])
 const chartLoading = ref(false)
 const coinLoading = ref(true)
+const showAlertModal = ref(false)
+const editingAlert = ref<import('~/types/api').PriceAlert | null>(null)
 
 const coin = computed(() => market.bySlug(slug.value))
 const watched = computed(() => watchlist.isWatched(slug.value))
 const position = computed(() => portfolio.holdings.find((h) => h.coin_slug === slug.value))
+const coinAlerts = computed(() => alertStore.activeAlertsFor(slug.value))
 
 const totalCap = computed(() => market.coins.reduce((s, c) => s + (c.market_cap ?? 0), 0))
 const dominance = computed(() => (totalCap.value && coin.value?.market_cap ? (coin.value.market_cap / totalCap.value) * 100 : null))
@@ -71,11 +75,21 @@ function addHolding() {
   else ui.openAddHolding()
 }
 
+async function deleteAlert(id: number) {
+  try {
+    await alertStore.remove(id)
+    ui.toast('Alert deleted')
+  } catch {
+    ui.toast('Could not delete alert')
+  }
+}
+
 watch(range, loadChart)
 
 onMounted(async () => {
   await market.ensureCoins([slug.value])
   if (!portfolio.dashboard) await portfolio.loadDashboard()
+  if (!alertStore.items.length) await alertStore.load()
   coinLoading.value = false
   loadChart()
 })
@@ -168,6 +182,39 @@ onMounted(async () => {
             <Plus class="h-4 w-4" /> Add {{ coin.symbol }} to portfolio
           </button>
 
+          <!-- price alerts -->
+          <div class="rounded-xl border border-border bg-card p-4">
+            <p class="mb-3 flex items-center gap-1.5 text-sm font-bold">
+              <Bell class="h-4 w-4 text-primary" /> Price Alerts
+            </p>
+            <div v-if="coinAlerts.length" class="mb-3 space-y-2">
+              <div v-for="a in coinAlerts" :key="a.id" class="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
+                <span>
+                  <span :class="a.direction === 'above' ? 'text-emerald-500' : 'text-red-500'" class="mr-1.5 font-bold">
+                    {{ a.direction === 'above' ? '↑' : '↓' }}
+                  </span>
+                  <span class="font-semibold tabular-nums">{{ fmtPrice(a.target_price) }}</span>
+                </span>
+                <div class="flex items-center gap-0.5">
+                  <button class="rounded p-0.5 text-muted-foreground hover:text-foreground" @click="editingAlert = a">
+                    <Pencil class="h-3.5 w-3.5" />
+                  </button>
+                  <button class="rounded p-0.5 text-muted-foreground hover:text-red-500" @click="deleteAlert(a.id)">
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button
+              class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="alertStore.activeCount >= 10"
+              @click="showAlertModal = true"
+            >
+              <Plus class="h-3.5 w-3.5" />
+              {{ alertStore.activeCount >= 10 ? '10/10 limit reached' : 'Set price alert' }}
+            </button>
+          </div>
+
           <!-- price performance -->
           <div v-if="prevPrice != null" class="rounded-xl border border-border bg-card p-4">
             <p class="mb-3 text-sm font-bold">Price Performance (24h)</p>
@@ -197,5 +244,21 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- create alert modal -->
+    <AlertModal
+      v-if="showAlertModal && coin"
+      :coin-slug="slug"
+      :coin-name="coin.name"
+      :current-price="coin.current_price"
+      @close="showAlertModal = false"
+    />
+    <!-- edit alert modal -->
+    <AlertModal
+      v-if="editingAlert"
+      :alert="editingAlert"
+      :current-price="coin?.current_price"
+      @close="editingAlert = null"
+    />
   </div>
 </template>
