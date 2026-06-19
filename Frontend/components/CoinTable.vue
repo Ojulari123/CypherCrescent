@@ -29,12 +29,12 @@ const portfolio = usePortfolioStore()
 const ui = useUiStore()
 
 // Sortable numeric columns (Price, 1h/24h/7d %, Market Cap). Name stays fixed.
-const numCols: Array<{ key: SortKey; label: string; kind: 'price' | 'pct' | 'cap' }> = [
+const numCols: Array<{ key: SortKey; label: string; kind: 'price' | 'pct' | 'cap'; mobileHide?: boolean }> = [
   { key: 'current_price', label: 'Price', kind: 'price' },
-  { key: 'price_change_percentage_1h', label: '1h %', kind: 'pct' },
+  { key: 'price_change_percentage_1h', label: '1h %', kind: 'pct', mobileHide: true },
   { key: 'price_change_percentage_24h', label: '24h %', kind: 'pct' },
-  { key: 'price_change_percentage_7d', label: '7d %', kind: 'pct' },
-  { key: 'market_cap', label: 'Market Cap', kind: 'cap' },
+  { key: 'price_change_percentage_7d', label: '7d %', kind: 'pct', mobileHide: true },
+  { key: 'market_cap', label: 'Market Cap', kind: 'cap', mobileHide: true },
 ]
 
 const sortKey = ref<SortKey>('market_cap')
@@ -77,7 +77,7 @@ async function toggleWatch(slug: string) {
 <template>
   <div class="overflow-hidden rounded-xl border border-border bg-card">
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[820px] text-sm">
+      <table class="w-full min-w-[360px] text-sm">
         <thead>
           <tr class="border-b border-border text-left text-xs text-muted-foreground">
             <th class="w-8 px-4 py-3"></th>
@@ -87,6 +87,7 @@ async function toggleWatch(slug: string) {
               v-for="col in numCols"
               :key="col.key"
               class="px-3 py-3 text-right"
+              :class="col.mobileHide ? 'hidden sm:table-cell' : ''"
               :aria-sort="sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
             >
               <button
@@ -120,7 +121,7 @@ async function toggleWatch(slug: string) {
                 <span v-if="portfolio.heldSlugs.includes(row.id)" class="rounded bg-emerald-500/15 px-1 text-[10px] font-semibold text-emerald-600">HELD</span>
               </NuxtLink>
             </td>
-            <td v-for="col in numCols" :key="col.key" class="px-3 py-3 text-right tabular-nums" :class="col.kind === 'price' ? 'font-semibold' : ''">
+            <td v-for="col in numCols" :key="col.key" class="px-3 py-3 text-right tabular-nums" :class="[col.kind === 'price' ? 'font-semibold' : '', col.mobileHide ? 'hidden sm:table-cell' : '']">
               <template v-if="col.kind === 'price'">{{ row.current_price != null ? fmtPrice(row.current_price) : '—' }}</template>
               <ChangeBadge v-else-if="col.kind === 'pct'" :value="(row[col.key] as number | null) ?? null" class="justify-end" />
               <template v-else>{{ row.market_cap != null ? fmtCompact(row.market_cap) : '—' }}</template>

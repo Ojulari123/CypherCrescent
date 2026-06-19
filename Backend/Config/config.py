@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     SEARCH_CACHE_TTL: int = 600
     CHART_CACHE_TTL: int = 300
 
-    FRONTEND_URL: str = "http://localhost:3000"
+    FRONTEND_URL: str
 
     @field_validator("JWT_SECRET")
     @classmethod

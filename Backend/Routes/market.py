@@ -17,9 +17,9 @@ RANGE_TO_DAYS = {
 # `ids` to page through the top coins by market cap (Markets page).
 @market_router.get("/coins", response_model=list[CoinMarket], status_code=status.HTTP_200_OK)
 def coin_markets(
-    ids: Optional[str] = Query(None, description="Comma-separated CoinGecko ids, e.g. bitcoin,ethereum. Omit to list top coins by market cap."),
-    page: int = Query(1, ge=1, description="Page number when listing top coins"),
-    per_page: int = Query(50, ge=1, le=250, description="Coins per page when listing top coins"),
+    ids: Optional[str] = Query(None, description="Comma-separated CoinGecko ids (bitcoin,ethereum). Omit to list top coins by market cap."),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=250),
     current_user: User = Depends(get_current_user),
 ):
     try:

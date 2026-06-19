@@ -26,8 +26,6 @@ const searching = computed(() => !!ui.query.trim())
 
 const rows = computed(() => {
   const q = ui.query.toLowerCase().trim()
-  // No query: show the current page of top coins. With a query: match against
-  // the hydrated cache (the curated set + anything search pulled in).
   if (!q) return market.topCoins
   return market.coins.filter((c) => `${c.name}${c.symbol}${c.id}`.toLowerCase().includes(q))
 })
@@ -43,7 +41,7 @@ function goToPage(page: number) {
   <div class="space-y-4">
     <div>
       <h1 class="text-xl font-bold md:text-2xl">Cryptocurrency Prices by Market Cap</h1>
-      <p class="text-sm text-muted-foreground">Live market data via CoinGecko — star to watch, click a column header to sort, click a row for the full page.</p>
+      <p class="text-sm text-muted-foreground">Live market data via CoinGecko. Star to watch, click a column header to sort, click a row for the full page.</p>
     </div>
 
     <CoinTableSkeleton v-if="market.topLoading && !market.topCoins.length" />
@@ -53,7 +51,6 @@ function goToPage(page: number) {
     <template v-else>
       <CoinTable :rows="rows" empty-hint="No coins match your search." />
 
-      <!-- Pagination (hidden while searching, since search spans the whole catalog) -->
       <div v-if="!searching" class="flex items-center justify-between">
         <p class="text-xs text-muted-foreground">Page {{ market.topPage }} · top coins by market cap</p>
         <div class="flex items-center gap-2">

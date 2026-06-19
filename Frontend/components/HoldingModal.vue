@@ -72,7 +72,7 @@ async function submit() {
 <template>
   <Transition name="fade">
     <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" @click="ui.closeHoldingModal()">
-      <div class="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl" role="dialog" aria-modal="true" @click.stop>
+      <div class="w-full max-w-md overflow-y-auto max-h-[90dvh] rounded-xl border border-border bg-card p-6 shadow-2xl" role="dialog" aria-modal="true" @click.stop>
         <div class="mb-5 flex items-center justify-between">
           <h3 class="text-lg font-bold">{{ editing ? 'Edit holding' : 'Add holding' }}</h3>
           <button class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="Close" @click="ui.closeHoldingModal()">
@@ -83,10 +83,10 @@ async function submit() {
         <label class="mb-1.5 block text-xs font-medium text-muted-foreground">Coin</label>
         <div class="mb-4 flex items-center gap-3 rounded-lg border border-border bg-background p-2.5" :class="editing ? 'opacity-70' : ''">
           <CoinIcon :slug="slug" :symbol="coin?.symbol" :image="coin?.image" :size="30" />
-          <select v-model="slug" :disabled="editing" class="flex-1 bg-transparent text-sm font-medium outline-none disabled:cursor-not-allowed">
+          <select v-model="slug" :disabled="editing" class="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none disabled:cursor-not-allowed">
             <option v-for="c in available" :key="c.id" :value="c.id">{{ c.name }} ({{ c.symbol }})</option>
           </select>
-          <span class="text-sm font-semibold tabular-nums">{{ price ? fmtPrice(price) : '—' }}</span>
+          <span class="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums">{{ price ? fmtPrice(price) : '—' }}</span>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
