@@ -75,9 +75,7 @@ onMounted(refresh)
     </div>
 
     <!-- loading -->
-    <div v-if="portfolio.loading && !dash" class="flex items-center justify-center rounded-xl border border-border bg-card py-20 text-muted-foreground">
-      <Loader2 class="h-6 w-6 animate-spin" /> <span class="ml-2 text-sm">Loading your portfolio…</span>
-    </div>
+    <DashboardSkeleton v-if="portfolio.loading && !dash" />
 
     <!-- error -->
     <div v-else-if="portfolio.error" class="rounded-xl border border-red-500/30 bg-red-500/5 p-5 text-sm text-red-500">

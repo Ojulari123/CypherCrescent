@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Star, Plus, Loader2 } from 'lucide-vue-next'
+import { Star, Plus } from 'lucide-vue-next'
 
 const watchlist = useWatchlistStore()
 const ui = useUiStore()
@@ -35,9 +35,7 @@ const rows = computed(() => {
       </NuxtLink>
     </div>
 
-    <div v-if="watchlist.loading && !watchlist.items.length" class="flex items-center justify-center rounded-xl border border-border bg-card py-20 text-muted-foreground">
-      <Loader2 class="h-6 w-6 animate-spin" /> <span class="ml-2 text-sm">Loading watchlist…</span>
-    </div>
+    <CoinTableSkeleton v-if="watchlist.loading && !watchlist.items.length" />
     <div v-else-if="!watchlist.items.length" class="rounded-xl border border-dashed border-border py-16 text-center">
       <Star class="mx-auto mb-2 h-7 w-7 text-muted-foreground" />
       <p class="font-medium">Your watchlist is empty</p>

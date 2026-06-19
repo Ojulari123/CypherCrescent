@@ -46,9 +46,7 @@ function goToPage(page: number) {
       <p class="text-sm text-muted-foreground">Live market data via CoinGecko — star to watch, click a column header to sort, click a row for the full page.</p>
     </div>
 
-    <div v-if="market.topLoading && !market.topCoins.length" class="flex items-center justify-center rounded-xl border border-border bg-card py-20 text-muted-foreground">
-      <Loader2 class="h-6 w-6 animate-spin" /> <span class="ml-2 text-sm">Loading markets…</span>
-    </div>
+    <CoinTableSkeleton v-if="market.topLoading && !market.topCoins.length" />
     <div v-else-if="market.error && !market.topCoins.length" class="rounded-xl border border-red-500/30 bg-red-500/5 p-5 text-sm text-red-500">
       {{ market.error }} <button class="ml-2 font-semibold underline" @click="market.loadTopMarkets(market.topPage)">Retry</button>
     </div>

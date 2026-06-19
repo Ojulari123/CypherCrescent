@@ -83,9 +83,7 @@ onMounted(async () => {
 
 <template>
   <div>
-    <div v-if="coinLoading && !coin" class="flex items-center justify-center py-24 text-muted-foreground">
-      <Loader2 class="h-6 w-6 animate-spin" /> <span class="ml-2 text-sm">Loading coin…</span>
-    </div>
+    <CoinDetailSkeleton v-if="coinLoading && !coin" />
 
     <div v-else-if="!coin" class="rounded-xl border border-border bg-card py-20 text-center">
       <p class="text-sm text-muted-foreground">We couldn't load market data for “{{ slug }}”.</p>

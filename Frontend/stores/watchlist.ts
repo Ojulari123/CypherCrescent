@@ -44,16 +44,48 @@ export const useWatchlistStore = defineStore('watchlist', {
       }
     },
 
+    // Optimistic add: show the row immediately (enriched from the market cache
+    // when available), then confirm with the server. Revert on failure.
     async add(coin_slug: string) {
+      if (this.isWatched(coin_slug)) return
       const auth = useAuthStore()
-      await auth.authFetch('/api/watchlist', { method: 'POST', body: { coin_slug } })
-      await this.load()
+      const c = useMarketStore().bySlug(coin_slug)
+      const tempId = -Date.now()
+      this.items.unshift({
+        id: tempId,
+        coin_slug,
+        created_at: new Date().toISOString(),
+        name: c?.name ?? null,
+        symbol: c?.symbol ?? null,
+        image: c?.image ?? null,
+        current_price: c?.current_price ?? null,
+        market_cap: c?.market_cap ?? null,
+        price_change_percentage_1h: c?.price_change_percentage_1h ?? null,
+        price_change_percentage_24h: c?.price_change_percentage_24h ?? null,
+        price_change_percentage_7d: c?.price_change_percentage_7d ?? null,
+      })
+      try {
+        const res = await auth.authFetch<any>('/api/watchlist', { method: 'POST', body: { coin_slug } })
+        const added = this.items.find((i) => i.id === tempId)
+        if (added && res?.id != null) added.id = res.id // swap temp id for the real one
+      } catch (e) {
+        this.items = this.items.filter((i) => i.id !== tempId) // revert
+        throw e
+      }
     },
 
+    // Optimistic remove: drop the row immediately, re-insert it if the server rejects.
     async remove(itemId: number) {
       const auth = useAuthStore()
-      await auth.authFetch(`/api/watchlist/${itemId}`, { method: 'DELETE' })
-      this.items = this.items.filter((i) => i.id !== itemId)
+      const idx = this.items.findIndex((i) => i.id === itemId)
+      if (idx === -1) return
+      const [removed] = this.items.splice(idx, 1)
+      try {
+        await auth.authFetch(`/api/watchlist/${itemId}`, { method: 'DELETE' })
+      } catch (e) {
+        this.items.splice(idx, 0, removed) // revert
+        throw e
+      }
     },
 
     // Toggle by coin slug (adds, or removes the matching item).

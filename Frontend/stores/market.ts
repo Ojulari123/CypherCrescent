@@ -24,9 +24,14 @@ function mapCoin(raw: any): CoinMarket {
 }
 
 const PER_PAGE = 50
+// How long a cached coin's market data is considered fresh. ensureCoins re-fetches
+// any coin older than this instead of trusting the cache forever.
+const COIN_TTL_MS = 60_000
 
 interface MarketState {
   coins: CoinMarket[]
+  // Last time (ms epoch) each coin id's data was fetched, keyed by id.
+  coinFetchedAt: Record<string, number>
   loading: boolean
   error: string | null
   searchResults: CoinSearchResult[]
@@ -41,6 +46,7 @@ interface MarketState {
 export const useMarketStore = defineStore('market', {
   state: (): MarketState => ({
     coins: [],
+    coinFetchedAt: {},
     loading: false,
     error: null,
     searchResults: [],
@@ -63,6 +69,8 @@ export const useMarketStore = defineStore('market', {
       try {
         const raw = await auth.authFetch<any[]>('/api/market/coins', { query: { ids: ids.join(',') } })
         this.coins = raw.map(mapCoin)
+        const now = Date.now()
+        for (const c of this.coins) this.coinFetchedAt[c.id] = now
       } catch (e: any) {
         this.error = e?.data?.detail || 'Failed to load market data'
       } finally {
@@ -88,16 +96,26 @@ export const useMarketStore = defineStore('market', {
       }
     },
 
-    // Ensure a set of coin ids are present in the cache (used by watchlist/holdings).
+    // Ensure a set of coin ids are present AND fresh in the cache (used by
+    // watchlist/holdings/coin detail). Fetches only ids that are missing or whose
+    // cached data is older than COIN_TTL_MS, then refreshes those in place.
     async ensureCoins(ids: string[]) {
-      const missing = ids.filter((id) => !this.coins.some((c) => c.id === id))
-      if (missing.length === 0) return
+      const now = Date.now()
+      const fresh = new Set(
+        this.coins.filter((c) => now - (this.coinFetchedAt[c.id] ?? 0) < COIN_TTL_MS).map((c) => c.id),
+      )
+      const want = [...new Set(ids)].filter((id) => !fresh.has(id))
+      if (want.length === 0) return
       const auth = useAuthStore()
       try {
-        const raw = await auth.authFetch<any[]>('/api/market/coins', { query: { ids: missing.join(',') } })
+        const raw = await auth.authFetch<any[]>('/api/market/coins', { query: { ids: want.join(',') } })
         const mapped = raw.map(mapCoin)
-        const seen = new Set(this.coins.map((c) => c.id))
-        this.coins.push(...mapped.filter((c) => !seen.has(c.id)))
+        const byId = new Map(this.coins.map((c) => [c.id, c]))
+        for (const c of mapped) {
+          byId.set(c.id, c) // replace stale entry (or add) with fresh data
+          this.coinFetchedAt[c.id] = now
+        }
+        this.coins = [...byId.values()]
       } catch {
         // non-fatal
       }
