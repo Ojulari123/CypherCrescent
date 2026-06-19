@@ -11,7 +11,7 @@ from Utils.email import send_verification, send_password_reset, send_two_factor_
 from Utils.two_factor import create_code, verify_code
 from Utils.activity import record_activity
 from Utils.refresh_session import issue_refresh_token, rotate_refresh_token
-from Utils.cloudinary import upload_image_to_cloudinary, delete_image_from_cloudinary, ALLOWED_IMAGE_TYPES
+from Utils.cloudinary import upload_image_to_cloudinary, delete_image_from_cloudinary
 from Utils.user import cascade_delete_user
 from Utils.rate_limit import limiter
 from Config.config import settings
@@ -268,9 +268,7 @@ def verify_change_password(request: Request, payload: PasswordChangeVerify, db: 
 # Upload profile photo
 @user_router.post("/me/profile-photo", status_code=status.HTTP_200_OK)
 async def upload_profile_photo(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=400, detail="Invalid image type. Allowed: JPEG, PNG, WebP")
-
+    # Validation (real-format sniff, size, resize) lives in upload_image_to_cloudinary.
     old_photo_url = current_user.profile_photo_url
 
     image_url = upload_image_to_cloudinary(file, folder=f"userDP/{current_user.id}")

@@ -26,7 +26,29 @@ def get_markets(coin_ids: List[str]) -> list:
                 per_page=250,
                 page=1,
                 sparkline=False,
-                price_change_percentage="24h",
+                price_change_percentage="1h,24h,7d",
+            )
+        except APIError as e:
+            raise MarketDataError(str(e))
+        return [item.model_dump(mode="json") for item in resp]
+
+    return cached(key, settings.MARKET_CACHE_TTL, fetch)
+
+# Fetch the top coins by market cap for a given page (no explicit ids).
+# CoinGecko returns coins ordered by market cap; there are thousands of coins,
+# so this is what backs the Markets page's pagination.
+def get_top_markets(page: int = 1, per_page: int = 50) -> list:
+    key = f"cg:topmarkets:{page}:{per_page}"
+
+    def fetch():
+        try:
+            resp = cg.coins.markets.get(
+                vs_currency="usd",
+                order="market_cap_desc",
+                per_page=per_page,
+                page=page,
+                sparkline=False,
+                price_change_percentage="1h,24h,7d",
             )
         except APIError as e:
             raise MarketDataError(str(e))

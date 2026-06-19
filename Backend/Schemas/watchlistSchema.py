@@ -32,6 +32,8 @@ class WatchlistItemWithMarket(BaseModel):
     image: Optional[str] = None
     current_price: Optional[Decimal] = None
     market_cap: Optional[Decimal] = None
+    price_change_percentage_1h_in_currency: Optional[Decimal] = None
     price_change_percentage_24h: Optional[Decimal] = None
+    price_change_percentage_7d_in_currency: Optional[Decimal] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -15,7 +15,9 @@ def enrich_watchlist_item(item, market_by_id):
         "image": market.get("image"),
         "current_price": to_decimal(market.get("current_price")),
         "market_cap": to_decimal(market.get("market_cap")),
+        "price_change_percentage_1h_in_currency": to_decimal(market.get("price_change_percentage_1h_in_currency")),
         "price_change_percentage_24h": to_decimal(market.get("price_change_percentage_24h")),
+        "price_change_percentage_7d_in_currency": to_decimal(market.get("price_change_percentage_7d_in_currency")),
     }
 
 # Fetch live market data for the given watchlist rows and shape the response.

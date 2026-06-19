@@ -15,9 +15,12 @@ class CoinMarket(BaseModel):
     symbol: str
     name: str
     image: Optional[str] = None
+    market_cap_rank: Optional[int] = None
     current_price: Optional[Decimal] = None
     market_cap: Optional[Decimal] = None
+    price_change_percentage_1h_in_currency: Optional[Decimal] = None
     price_change_percentage_24h: Optional[Decimal] = None
+    price_change_percentage_7d_in_currency: Optional[Decimal] = None
 
     model_config = ConfigDict(from_attributes=True)
 

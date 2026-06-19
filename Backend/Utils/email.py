@@ -26,52 +26,80 @@ def send(to_email: str, subject: str, html: str, text: str) -> None:
         smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
         smtp.send_message(msg)
 
+# Brand tokens
+BRAND = "#3861fb"
+INK = "#0f172a"        # headings
+BODY = "#475569"       # paragraph text
+MUTE = "#94a3b8"       # footer / fine print
+LINE = "#e6e9f4"       # hairline borders
+PAGE_BG = "#eef2fb"    # outer canvas
+SOFT = "#f4f6fc"       # inset boxes
+FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+
+
 def base_template(title: str, preheader: str, body_html: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light only" />
   <title>{title}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0b1020;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e6e8ef;">
-  <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;">{preheader}</span>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0b1020;padding:32px 16px;">
+<body style="margin:0;padding:0;background-color:{PAGE_BG};font-family:{FONT};color:{BODY};-webkit-font-smoothing:antialiased;">
+  <span style="display:none!important;visibility:hidden;mso-hide:all;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">{preheader}</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:{PAGE_BG};padding:40px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#121833;border-radius:12px;overflow:hidden;border:1px solid #1f2a4d;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid {LINE};">
+          <!-- brand accent bar -->
+          <tr><td style="height:4px;background:{BRAND};font-size:0;line-height:0;">&nbsp;</td></tr>
+          <!-- header / logo lockup -->
           <tr>
-            <td style="padding:28px 32px;border-bottom:1px solid #1f2a4d;">
-              <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">
-                Cypher<span style="color:#7c9cff;">Crescent</span>
-              </h1>
+            <td style="padding:28px 40px 8px 40px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width:42px;height:42px;background:{BRAND};border-radius:11px;text-align:center;vertical-align:middle;font-size:20px;font-weight:800;color:#ffffff;font-family:{FONT};">C</td>
+                  <td style="width:12px;">&nbsp;</td>
+                  <td style="font-size:18px;font-weight:700;color:{INK};letter-spacing:-0.01em;">Cypher Crescent</td>
+                </tr>
+              </table>
             </td>
           </tr>
+          <!-- body -->
           <tr>
-            <td style="padding:32px;">
+            <td style="padding:24px 40px 36px 40px;">
               {body_html}
             </td>
           </tr>
+          <!-- footer -->
           <tr>
-            <td style="padding:20px 32px;border-top:1px solid #1f2a4d;font-size:12px;color:#8a93b2;text-align:center;">
-              You're receiving this email because an action was requested on your CypherCrescent account.<br />
-              If this wasn't you, you can safely ignore this message.
+            <td style="padding:24px 40px 32px 40px;border-top:1px solid {LINE};">
+              <p style="margin:0 0 6px 0;font-size:13px;font-weight:600;color:{INK};">Cypher Crescent</p>
+              <p style="margin:0;font-size:12px;line-height:1.6;color:{MUTE};">
+                This is an automated security message about your account. If you didn't request it,
+                no action is needed — you can safely ignore this email.
+              </p>
             </td>
           </tr>
         </table>
+        <p style="max-width:600px;margin:16px auto 0 auto;font-size:11px;color:{MUTE};text-align:center;font-family:{FONT};">
+          Cypher Crescent · Crypto portfolio tracking
+        </p>
       </td>
     </tr>
   </table>
 </body>
 </html>"""
 
+
 def button(href: str, label: str) -> str:
     return f"""
-      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
         <tr>
-          <td style="border-radius:8px;background:#4f6cff;">
+          <td align="center" bgcolor="{BRAND}" style="border-radius:10px;">
             <a href="{href}" target="_blank"
-               style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
+               style="display:inline-block;padding:14px 30px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;font-family:{FONT};">
               {label}
             </a>
           </td>
@@ -79,107 +107,132 @@ def button(href: str, label: str) -> str:
       </table>
     """
 
+
+def fallback_link(href: str) -> str:
+    return f"""
+      <p style="margin:24px 0 8px 0;font-size:13px;color:{MUTE};">Or paste this link into your browser:</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{SOFT};border:1px solid {LINE};border-radius:8px;">
+        <tr><td style="padding:12px 14px;font-size:12px;word-break:break-all;">
+          <a href="{href}" style="color:{BRAND};text-decoration:none;">{href}</a>
+        </td></tr>
+      </table>
+    """
+
+
+def heading(text: str) -> str:
+    return f'<h1 style="margin:0 0 14px 0;font-size:22px;line-height:1.3;font-weight:700;color:{INK};letter-spacing:-0.01em;">{text}</h1>'
+
+
+def paragraph(text: str) -> str:
+    return f'<p style="margin:0 0 14px 0;font-size:15px;line-height:1.65;color:{BODY};">{text}</p>'
+
+
+def note(text: str) -> str:
+    return f'<p style="margin:24px 0 0 0;font-size:13px;line-height:1.6;color:{MUTE};">{text}</p>'
+
+
 def send_verification_email(to_email: str, first_name: str, token: str) -> None:
     verify_url = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}"
 
-    body = f"""
-      <h2 style="margin:0 0 16px 0;font-size:20px;color:#ffffff;">Verify your email, {first_name}</h2>
-      <p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#c8cee0;">
-        Welcome to CypherCrescent. Confirm this email address to activate your account
-        and start managing your crypto portfolio.
-      </p>
-      {button(verify_url, "Verify email")}
-      <p style="margin:24px 0 8px 0;font-size:13px;color:#8a93b2;">
-        Or paste this link into your browser:
-      </p>
-      <p style="margin:0;font-size:13px;word-break:break-all;">
-        <a href="{verify_url}" style="color:#7c9cff;text-decoration:none;">{verify_url}</a>
-      </p>
-      <p style="margin:24px 0 0 0;font-size:13px;color:#8a93b2;">
-        This link will expire in {settings.EMAIL_VERIFY_EXPIRE_MINUTES} minutes.
-      </p>
-    """
+    body = (
+        heading(f"Confirm your email, {first_name}")
+        + paragraph(
+            "Welcome to Cypher Crescent. Confirm this address to finish setting up your account — "
+            "then you can start tracking prices, building a watchlist, and following your portfolio."
+        )
+        + button(verify_url, "Confirm email address")
+        + fallback_link(verify_url)
+        + note(f"This link expires in {settings.EMAIL_VERIFY_EXPIRE_MINUTES} minutes for your security.")
+    )
 
     text = (
         f"Hi {first_name},\n\n"
-        f"Confirm your CypherCrescent email by opening this link:\n{verify_url}\n\n"
-        f"This link expires in {settings.EMAIL_VERIFY_EXPIRE_MINUTES} minutes.\n"
+        f"Welcome to Cypher Crescent. Confirm your email to finish setting up your account:\n{verify_url}\n\n"
+        f"This link expires in {settings.EMAIL_VERIFY_EXPIRE_MINUTES} minutes.\n\n"
+        f"If you didn't create an account, you can ignore this email.\n"
     )
 
     send(
         to_email=to_email,
-        subject="Verify your CypherCrescent email",
+        subject="Confirm your email · Cypher Crescent",
         html=base_template(
-            title="Verify your email",
-            preheader="Confirm your email to activate your CypherCrescent account.",
+            title="Confirm your email",
+            preheader="Confirm your email to finish setting up your Cypher Crescent account.",
             body_html=body,
         ),
         text=text,
     )
+
 
 def send_password_reset_email(to_email: str, first_name: str, token: str) -> None:
     reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
 
-    body = f"""
-      <h2 style="margin:0 0 16px 0;font-size:20px;color:#ffffff;">Reset your password, {first_name}</h2>
-      <p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#c8cee0;">
-        We received a request to reset the password for your CypherCrescent account.
-        Click the button below to choose a new one.
-      </p>
-      {button(reset_url, "Reset password")}
-      <p style="margin:24px 0 8px 0;font-size:13px;color:#8a93b2;">
-        Or paste this link into your browser:
-      </p>
-      <p style="margin:0;font-size:13px;word-break:break-all;">
-        <a href="{reset_url}" style="color:#7c9cff;text-decoration:none;">{reset_url}</a>
-      </p>
-      <p style="margin:24px 0 0 0;font-size:13px;color:#8a93b2;">
-        If you didn't request a password reset, no action is needed — your password will stay the same.
-      </p>
-    """
+    body = (
+        heading(f"Reset your password, {first_name}")
+        + paragraph(
+            "We got a request to reset the password on your Cypher Crescent account. "
+            "Choose a new password using the button below."
+        )
+        + button(reset_url, "Choose a new password")
+        + fallback_link(reset_url)
+        + note(
+            f"This link expires in {settings.PASSWORD_RESET_EXPIRE_MINUTES} minutes. "
+            "Didn't request this? Your password hasn't changed — you can safely ignore this email."
+        )
+    )
 
     text = (
         f"Hi {first_name},\n\n"
-        f"Reset your CypherCrescent password by opening this link:\n{reset_url}\n\n"
+        f"Reset your Cypher Crescent password using this link:\n{reset_url}\n\n"
         f"This link expires in {settings.PASSWORD_RESET_EXPIRE_MINUTES} minutes. "
-        f"If you didn't request this, ignore this email.\n"
+        f"If you didn't request this, your password stays the same — ignore this email.\n"
     )
 
     send(
         to_email=to_email,
-        subject="Reset your CypherCrescent password",
+        subject="Reset your password · Cypher Crescent",
         html=base_template(
             title="Reset your password",
-            preheader="Use this link to reset your CypherCrescent password.",
+            preheader="Choose a new password for your Cypher Crescent account.",
             body_html=body,
         ),
         text=text,
     )
 
+
 def send_two_factor_code_email(to_email: str, first_name: str, code: str, action: str) -> None:
-    body = f"""
-      <h2 style="margin:0 0 16px 0;font-size:20px;color:#ffffff;">Your verification code</h2>
-      <p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#c8cee0;">
-        Hi {first_name}, use this code to {action}:
-      </p>
-      <p style="margin:24px 0;font-size:34px;font-weight:700;letter-spacing:8px;color:#ffffff;">{code}</p>
-      <p style="margin:0;font-size:13px;color:#8a93b2;">
-        This code expires in {settings.OTP_EXPIRE_MINUTES} minutes. If you didn't request it, you can ignore this email.
-      </p>
+    code_block = f"""
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+        <tr>
+          <td style="background:{SOFT};border:1px solid {LINE};border-radius:12px;padding:18px 28px;font-size:34px;font-weight:700;letter-spacing:10px;color:{INK};font-family:'SFMono-Regular',Consolas,Menlo,monospace;">
+            {code}
+          </td>
+        </tr>
+      </table>
     """
+
+    body = (
+        heading("Your verification code")
+        + paragraph(f"Hi {first_name}, use this code to {action}:")
+        + code_block
+        + note(
+            f"This code expires in {settings.OTP_EXPIRE_MINUTES} minutes. "
+            "Never share it — Cypher Crescent will never ask you for this code."
+        )
+    )
 
     text = (
         f"Hi {first_name},\n\n"
-        f"Your CypherCrescent code to {action} is: {code}\n\n"
-        f"It expires in {settings.OTP_EXPIRE_MINUTES} minutes. If you didn't request it, ignore this email.\n"
+        f"Your Cypher Crescent code to {action} is: {code}\n\n"
+        f"It expires in {settings.OTP_EXPIRE_MINUTES} minutes. Never share this code with anyone.\n"
     )
 
     send(
         to_email=to_email,
-        subject="Your CypherCrescent verification code",
+        subject=f"{code} is your Cypher Crescent code",
         html=base_template(
             title="Your verification code",
-            preheader="Your CypherCrescent verification code.",
+            preheader=f"Your verification code is {code}.",
             body_html=body,
         ),
         text=text,
