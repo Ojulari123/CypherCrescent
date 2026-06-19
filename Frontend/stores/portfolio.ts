@@ -99,8 +99,7 @@ export const usePortfolioStore = defineStore('portfolio', {
       }
     },
 
-    // Build a real portfolio value series by summing each holding's historical
-    // price (CoinGecko via /market/coins/{id}/chart) × quantity over the range.
+    // Build a real portfolio value series by summing each holding's historical price × quantity over the range.
     async loadPerformance(range: '24h' | '7d' | '30d') {
       const market = useMarketStore()
       const holds = this.holdings
@@ -112,7 +111,8 @@ export const usePortfolioStore = defineStore('portfolio', {
             try {
               const c = await market.getChart(h.coin_slug, range)
               return { qty: h.quantity, prices: (c.points ?? []).map((p) => p.price) }
-            } catch {
+            } catch (e) {
+              console.warn(`[portfolio] Failed to load chart for ${h.coin_slug}:`, e)
               return null
             }
           }),

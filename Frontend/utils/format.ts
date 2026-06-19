@@ -1,6 +1,3 @@
-// Shared formatters — ported from the MagicPath design.
-
-// Coerce a possibly-string (pydantic Decimal) / null value to a number.
 export function num(v: unknown, fallback = 0): number {
   if (v === null || v === undefined || v === '') return fallback
   const n = typeof v === 'number' ? v : parseFloat(String(v))
@@ -38,17 +35,14 @@ export function fmtCompact(n: number): string {
   return fmtUsd(n, 0)
 }
 
-// Human-friendly date+time for the activity log (e.g. "Jun 18, 2026, 9:41 PM").
 export function fmtDateTime(iso: string): string {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-// Turn an activity event slug ("password_changed") into a label ("Password Changed").
 export function prettyEvent(event: string): string {
   return event.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-// Chart up/down colors (kept as literals so SVG strokes match the design).
 export const UP = '#16a34a'
 export const DOWN = '#dc2626'

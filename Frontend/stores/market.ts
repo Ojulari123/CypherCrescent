@@ -24,19 +24,15 @@ function mapCoin(raw: any): CoinMarket {
 }
 
 const PER_PAGE = 50
-// How long a cached coin's market data is considered fresh. ensureCoins re-fetches
-// any coin older than this instead of trusting the cache forever.
 const COIN_TTL_MS = 60_000
 
 interface MarketState {
   coins: CoinMarket[]
-  // Last time (ms epoch) each coin id's data was fetched, keyed by id.
   coinFetchedAt: Record<string, number>
   loading: boolean
   error: string | null
   searchResults: CoinSearchResult[]
   searching: boolean
-  // Markets page: top coins by market cap, paginated independently of the cache above.
   topCoins: CoinMarket[]
   topPage: number
   topHasMore: boolean
@@ -78,8 +74,7 @@ export const useMarketStore = defineStore('market', {
       }
     },
 
-    // Markets page: load a page of the top coins by market cap. CoinGecko has
-    // thousands of coins, so this pages through them 50 at a time.
+    // Markets page: load a page of the top coins by market cap
     async loadTopMarkets(page = 1) {
       const auth = useAuthStore()
       this.topLoading = true
@@ -96,9 +91,7 @@ export const useMarketStore = defineStore('market', {
       }
     },
 
-    // Ensure a set of coin ids are present AND fresh in the cache (used by
-    // watchlist/holdings/coin detail). Fetches only ids that are missing or whose
-    // cached data is older than COIN_TTL_MS, then refreshes those in place.
+    // Ensure a set of coin ids are present & fresh in the cache
     async ensureCoins(ids: string[]) {
       const now = Date.now()
       const fresh = new Set(
@@ -116,8 +109,8 @@ export const useMarketStore = defineStore('market', {
           this.coinFetchedAt[c.id] = now
         }
         this.coins = [...byId.values()]
-      } catch {
-        // non-fatal
+      } catch (e) {
+        console.warn('[market] ensureCoins failed:', e)
       }
     },
 
@@ -135,7 +128,8 @@ export const useMarketStore = defineStore('market', {
       this.searching = true
       try {
         this.searchResults = await auth.authFetch<CoinSearchResult[]>('/api/market/search', { query: { q } })
-      } catch {
+      } catch (e) {
+        console.warn('[market] search failed:', e)
         this.searchResults = []
       } finally {
         this.searching = false

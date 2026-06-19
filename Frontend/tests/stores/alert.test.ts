@@ -29,7 +29,6 @@ function setupAuth() {
 }
 
 // ── Initial state ─────────────────────────────────────────────────────────────
-
 describe('initial state', () => {
   it('starts empty and not loading', () => {
     const store = useAlertStore()
@@ -40,8 +39,7 @@ describe('initial state', () => {
   })
 })
 
-// ── Getters ───────────────────────────────────────────────────────────────────
-
+// Getters
 describe('getters', () => {
   it('active filters to untriggered alerts', () => {
     const store = useAlertStore()
@@ -61,6 +59,30 @@ describe('getters', () => {
     ]
     expect(store.triggered).toHaveLength(1)
     expect(store.triggered[0].id).toBe(2)
+  })
+
+  it('atLimit is false when under 10 active alerts', () => {
+    const store = useAlertStore()
+    store.items = Array.from({ length: 9 }, (_, i) => ({
+      id: i + 1, coin_slug: 'bitcoin', target_price: 60000, direction: 'above' as const, triggered: false, triggered_at: null, created_at: '',
+    }))
+    expect(store.atLimit).toBe(false)
+  })
+
+  it('atLimit is true at exactly 10 active alerts', () => {
+    const store = useAlertStore()
+    store.items = Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1, coin_slug: 'bitcoin', target_price: 60000, direction: 'above' as const, triggered: false, triggered_at: null, created_at: '',
+    }))
+    expect(store.atLimit).toBe(true)
+  })
+
+  it('atLimit ignores triggered alerts', () => {
+    const store = useAlertStore()
+    store.items = Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1, coin_slug: 'bitcoin', target_price: 60000, direction: 'above' as const, triggered: true, triggered_at: '2026-06-15T00:00:00Z', created_at: '',
+    }))
+    expect(store.atLimit).toBe(false)
   })
 
   it('activeCount counts only untriggered', () => {
@@ -103,8 +125,7 @@ describe('getters', () => {
   })
 })
 
-// ── load ──────────────────────────────────────────────────────────────────────
-
+// load
 describe('load', () => {
   it('fetches and maps alerts (coerces string numbers)', async () => {
     const auth = setupAuth()
@@ -133,8 +154,7 @@ describe('load', () => {
   })
 })
 
-// ── create ────────────────────────────────────────────────────────────────────
-
+// create
 describe('create', () => {
   it('posts alert and prepends to items list', async () => {
     const auth = setupAuth()
@@ -176,8 +196,7 @@ describe('create', () => {
   })
 })
 
-// ── update ────────────────────────────────────────────────────────────────────
-
+// update
 describe('update', () => {
   it('patches alert and updates item in list', async () => {
     const auth = setupAuth()
@@ -224,8 +243,7 @@ describe('update', () => {
   })
 })
 
-// ── reactivate ────────────────────────────────────────────────────────────────
-
+// reactivate
 describe('reactivate', () => {
   it('posts to reactivate endpoint and updates item in list', async () => {
     const auth = setupAuth()
@@ -269,8 +287,7 @@ describe('reactivate', () => {
   })
 })
 
-// ── remove ────────────────────────────────────────────────────────────────────
-
+// remove
 describe('remove', () => {
   it('calls DELETE and removes item from list', async () => {
     const auth = setupAuth()

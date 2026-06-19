@@ -1,6 +1,3 @@
-// App-facing types. Numeric fields the backend serializes as Decimal arrive as
-// strings over JSON, so stores coerce them to `number` at the boundary (see num()).
-
 export type ChartRange = '24h' | '7d' | '30d'
 
 export interface User {

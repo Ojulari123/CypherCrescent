@@ -7,18 +7,12 @@ const alertStore = useAlertStore()
 const marketStore = useMarketStore()
 const ui = useUiStore()
 
-const showModal = ref(false)
-const editingAlert = ref<PriceAlert | null>(null)
+const alertModal = ref<null | 'create' | PriceAlert>(null)
 const deletingId = ref<number | null>(null)
 const reactivatingId = ref<number | null>(null)
 
-function openEdit(alert: PriceAlert) {
-  editingAlert.value = alert
-}
-
 function closeModal() {
-  showModal.value = false
-  editingAlert.value = null
+  alertModal.value = null
 }
 
 onMounted(async () => {
@@ -70,8 +64,8 @@ function coinLabel(slug: string) {
       </div>
       <button
         class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98]"
-        :disabled="alertStore.activeCount >= 10"
-        @click="showModal = true"
+        :disabled="alertStore.atLimit"
+        @click="alertModal = 'create'"
       >
         <Plus class="h-4 w-4" /> New alert
       </button>
@@ -94,7 +88,7 @@ function coinLabel(slug: string) {
       </p>
       <button
         class="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-        @click="showModal = true"
+        @click="alertModal = 'create'"
       >
         <Plus class="h-4 w-4" /> New alert
       </button>
@@ -128,7 +122,7 @@ function coinLabel(slug: string) {
             <button
               class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Edit alert"
-              @click="openEdit(alert)"
+              @click="alertModal = alert"
             >
               <Pencil class="h-4 w-4" />
             </button>
@@ -169,8 +163,8 @@ function coinLabel(slug: string) {
           <div class="flex shrink-0 items-center gap-1">
             <button
               class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-40"
-              :disabled="reactivatingId === alert.id || alertStore.activeCount >= 10"
-              :title="alertStore.activeCount >= 10 ? '10/10 limit reached' : 'Reactivate alert'"
+              :disabled="reactivatingId === alert.id || alertStore.atLimit"
+              :title="alertStore.atLimit ? '10/10 limit reached' : 'Reactivate alert'"
               aria-label="Reactivate alert"
               @click="reactivateAlert(alert)"
             >
@@ -192,7 +186,6 @@ function coinLabel(slug: string) {
     </template>
 
     <!-- create / edit modal -->
-    <AlertModal v-if="showModal" @close="closeModal" />
-    <AlertModal v-if="editingAlert" :alert="editingAlert" @close="closeModal" />
+    <AlertModal v-if="alertModal !== null" :alert="alertModal !== 'create' ? alertModal : undefined" @close="closeModal" />
   </div>
 </template>

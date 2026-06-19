@@ -20,8 +20,7 @@ const MOCK_HOLDING = {
   pl_percent: 62.5,
 }
 
-// ── Initial state ─────────────────────────────────────────────────────────────
-
+// Initial state
 describe('initial state', () => {
   it('starts with dark mode on, empty toasts, no modal', () => {
     const store = useUiStore()
@@ -33,8 +32,7 @@ describe('initial state', () => {
   })
 })
 
-// ── Theme ─────────────────────────────────────────────────────────────────────
-
+// Theme
 describe('toggleTheme', () => {
   it('flips dark mode and saves to localStorage', () => {
     const store = useUiStore()
@@ -52,10 +50,10 @@ describe('toggleTheme', () => {
   it('applies dark class to document root', () => {
     const store = useUiStore()
     store.dark = false
-    store.toggleTheme()  // → dark = true
+    store.toggleTheme()
     expect(document.documentElement.classList.contains('dark')).toBe(true)
 
-    store.toggleTheme()  // → dark = false
+    store.toggleTheme()
     expect(document.documentElement.classList.contains('dark')).toBe(false)
   })
 })
@@ -74,8 +72,6 @@ describe('initTheme', () => {
     expect(store.dark).toBe(true)
   })
 })
-
-// ── Toast ─────────────────────────────────────────────────────────────────────
 
 describe('toast', () => {
   it('adds a toast with a message', () => {
@@ -107,8 +103,6 @@ describe('toast', () => {
   })
 })
 
-// ── setQuery ──────────────────────────────────────────────────────────────────
-
 describe('setQuery', () => {
   it('updates the search query', () => {
     const store = useUiStore()
@@ -116,8 +110,6 @@ describe('setQuery', () => {
     expect(store.query).toBe('bitcoin')
   })
 })
-
-// ── Holding modal ─────────────────────────────────────────────────────────────
 
 describe('holding modal', () => {
   it('openAddHolding sets mode to add', () => {
@@ -139,8 +131,6 @@ describe('holding modal', () => {
     expect(store.holdingModal).toBeNull()
   })
 })
-
-// ── Delete confirm ────────────────────────────────────────────────────────────
 
 describe('delete confirm', () => {
   it('askDeleteHolding sets the id', () => {

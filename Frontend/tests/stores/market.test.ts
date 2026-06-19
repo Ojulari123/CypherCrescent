@@ -35,8 +35,6 @@ function setupAuth() {
   return auth
 }
 
-// ── loadMarkets ───────────────────────────────────────────────────────────────
-
 describe('loadMarkets', () => {
   it('fetches coins and maps them', async () => {
     const auth = setupAuth()
@@ -47,9 +45,9 @@ describe('loadMarkets', () => {
 
     expect(store.coins).toHaveLength(2)
     expect(store.coins[0].id).toBe('bitcoin')
-    expect(store.coins[0].symbol).toBe('BTC')  // uppercased
+    expect(store.coins[0].symbol).toBe('BTC')  
     expect(store.coins[0].current_price).toBe(65000)
-    expect(store.coins[1].price_change_percentage_1h).toBeNull() // null preserved
+    expect(store.coins[1].price_change_percentage_1h).toBeNull()
     expect(store.loading).toBe(false)
   })
 
@@ -77,8 +75,6 @@ describe('loadMarkets', () => {
     expect(store.coinFetchedAt['bitcoin']).toBeLessThanOrEqual(after)
   })
 })
-
-// ── loadTopMarkets ────────────────────────────────────────────────────────────
 
 describe('loadTopMarkets', () => {
   it('loads page and sets topHasMore=true when full page returned', async () => {
@@ -118,15 +114,12 @@ describe('loadTopMarkets', () => {
   })
 })
 
-// ── ensureCoins ───────────────────────────────────────────────────────────────
-
 describe('ensureCoins', () => {
   it('skips coins already in cache that are fresh', async () => {
     const auth = setupAuth()
     const spy = vi.spyOn(auth, 'authFetch').mockResolvedValue([])
 
     const store = useMarketStore()
-    // Pre-populate cache as fresh
     store.coins = [{ id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', image: null, market_cap_rank: 1, current_price: 65000, market_cap: null, price_change_percentage_1h: null, price_change_percentage_24h: null, price_change_percentage_7d: null }]
     store.coinFetchedAt['bitcoin'] = Date.now()
 
@@ -161,8 +154,6 @@ describe('ensureCoins', () => {
     expect(store.coins).toHaveLength(1)
   })
 })
-
-// ── search ────────────────────────────────────────────────────────────────────
 
 describe('search', () => {
   it('clears results and skips fetch for empty query', async () => {
@@ -202,8 +193,6 @@ describe('search', () => {
     expect(store.searching).toBe(false)
   })
 })
-
-// ── bySlug getter ─────────────────────────────────────────────────────────────
 
 describe('bySlug', () => {
   it('returns a coin by id', () => {

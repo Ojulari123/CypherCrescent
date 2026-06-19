@@ -36,7 +36,6 @@ describe('ChangeBadge', () => {
 
   it('shows arrow for zero when showZeroNeutral is false', () => {
     const wrapper = mount(ChangeBadge, { props: { value: 0, showZeroNeutral: false } })
-    // 0 >= 0 so it's "up"
     expect(wrapper.text()).toContain('▲')
   })
 })

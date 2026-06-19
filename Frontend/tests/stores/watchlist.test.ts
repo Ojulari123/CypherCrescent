@@ -54,7 +54,6 @@ describe('getters', () => {
 })
 
 // load
-
 describe('load', () => {
   it('fetches and maps watchlist items', async () => {
     const auth = setupAuth()
@@ -81,7 +80,6 @@ describe('load', () => {
 })
 
 // add
-
 describe('add', () => {
   it('inserts optimistically and confirms with server id', async () => {
     const auth = setupAuth()
@@ -132,7 +130,6 @@ describe('add', () => {
 })
 
 // remove
-
 describe('remove', () => {
   it('removes item optimistically and calls API', async () => {
     const auth = setupAuth()
@@ -171,8 +168,7 @@ describe('remove', () => {
   })
 })
 
-// ── toggle ────────────────────────────────────────────────────────────────────
-
+// toggle
 describe('toggle', () => {
   it('calls add when coin is not watched', async () => {
     const auth = setupAuth()

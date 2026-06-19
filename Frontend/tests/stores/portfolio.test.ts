@@ -36,8 +36,6 @@ function setupAuth() {
   return auth
 }
 
-// ── Getters ───────────────────────────────────────────────────────────────────
-
 describe('getters', () => {
   it('holdings returns empty array when dashboard is null', () => {
     const store = usePortfolioStore()
@@ -56,8 +54,6 @@ describe('getters', () => {
     expect(store.heldSlugs).toEqual(['bitcoin'])
   })
 })
-
-// ── loadDashboard ─────────────────────────────────────────────────────────────
 
 describe('loadDashboard', () => {
   it('fetches and coerces numeric strings to numbers', async () => {
@@ -111,8 +107,6 @@ describe('loadDashboard', () => {
   })
 })
 
-// ── addHolding ────────────────────────────────────────────────────────────────
-
 describe('addHolding', () => {
   it('posts holding and reloads dashboard', async () => {
     const auth = setupAuth()
@@ -138,8 +132,6 @@ describe('addHolding', () => {
   })
 })
 
-// ── updateHolding ─────────────────────────────────────────────────────────────
-
 describe('updateHolding', () => {
   it('patches holding and reloads dashboard', async () => {
     const auth = setupAuth()
@@ -155,14 +147,12 @@ describe('updateHolding', () => {
   })
 })
 
-// ── deleteHolding ─────────────────────────────────────────────────────────────
-
 describe('deleteHolding', () => {
   it('deletes holding and reloads dashboard', async () => {
     const auth = setupAuth()
     const authFetchSpy = vi.spyOn(auth, 'authFetch')
-      .mockResolvedValueOnce(undefined)           // DELETE returns nothing
-      .mockResolvedValueOnce(MOCK_DASHBOARD_RAW)  // reload
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(MOCK_DASHBOARD_RAW)
 
     const store = usePortfolioStore()
     await store.deleteHolding(1)

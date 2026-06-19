@@ -1,7 +1,3 @@
-// Brand colors for the fallback coin badge (used when the API image is missing)
-// and the curated id set the Markets page loads (the backend's /market/coins
-// requires explicit ids — there is no "list all by market cap" endpoint).
-
 export const COIN_COLORS: Record<string, string> = {
   bitcoin: '#f7931a',
   ethereum: '#627eea',
@@ -24,7 +20,6 @@ export function coinColor(slug: string): string {
   return COIN_COLORS[slug] ?? '#64748b'
 }
 
-// Default Markets watch universe (CoinGecko ids).
 export const DEFAULT_MARKET_IDS = [
   'bitcoin',
   'ethereum',

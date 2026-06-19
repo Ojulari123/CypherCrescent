@@ -24,8 +24,6 @@ const MOCK_TOKEN = {
 
 const fetch = $fetch as any
 
-// ── Initial state ─────────────────────────────────────────────────────────────
-
 describe('initial state', () => {
   it('starts unauthenticated', () => {
     const auth = useAuthStore()
@@ -36,8 +34,6 @@ describe('initial state', () => {
     expect(auth.isAuthenticated).toBe(false)
   })
 })
-
-// ── Getters ───────────────────────────────────────────────────────────────────
 
 describe('displayName getter', () => {
   it('returns display_name when set', () => {
@@ -63,8 +59,6 @@ describe('displayName getter', () => {
     expect(auth.displayName).toBe('Trader')
   })
 })
-
-// ── setSession / clear ────────────────────────────────────────────────────────
 
 describe('setSession', () => {
   it('stores tokens and user in state', () => {
@@ -96,8 +90,6 @@ describe('clear', () => {
     expect(localStorage.getItem(REFRESH_KEY)).toBeNull()
   })
 })
-
-// ── init ──────────────────────────────────────────────────────────────────────
 
 describe('init', () => {
   it('reads tokens from localStorage and hydrates user', async () => {
@@ -132,8 +124,6 @@ describe('init', () => {
   })
 })
 
-// ── login ─────────────────────────────────────────────────────────────────────
-
 describe('login', () => {
   it('sets session on successful login', async () => {
     fetch.mockResolvedValueOnce(MOCK_TOKEN)
@@ -153,8 +143,6 @@ describe('login', () => {
   })
 })
 
-// ── register ──────────────────────────────────────────────────────────────────
-
 describe('register', () => {
   it('calls register endpoint and sets session', async () => {
     fetch.mockResolvedValueOnce(MOCK_TOKEN)
@@ -165,7 +153,6 @@ describe('register', () => {
   })
 })
 
-// ── logout ────────────────────────────────────────────────────────────────────
 
 describe('logout', () => {
   it('calls logout endpoint and clears session', async () => {
@@ -184,8 +171,6 @@ describe('logout', () => {
     expect(auth.accessToken).toBeNull()
   })
 })
-
-// ── authFetch ─────────────────────────────────────────────────────────────────
 
 describe('authFetch', () => {
   it('attaches Authorization header when token is set', async () => {
@@ -207,9 +192,9 @@ describe('authFetch', () => {
 
     const err401 = Object.assign(new Error('401'), { response: { status: 401 } })
     fetch
-      .mockRejectedValueOnce(err401)                                    // original request fails
-      .mockResolvedValueOnce({ access_token: 'new-acc', refresh_token: 'new-ref' }) // refresh
-      .mockResolvedValueOnce({ data: 'retried' })                       // retry
+      .mockRejectedValueOnce(err401)
+      .mockResolvedValueOnce({ access_token: 'new-acc', refresh_token: 'new-ref' })
+      .mockResolvedValueOnce({ data: 'retried' })                     
 
     const result = await auth.authFetch<{ data: string }>('/api/protected')
     expect(result).toEqual({ data: 'retried' })
@@ -230,8 +215,6 @@ describe('authFetch', () => {
     expect(auth.accessToken).toBeNull()
   })
 })
-
-// ── verifyTwoFactor ───────────────────────────────────────────────────────────
 
 describe('verifyTwoFactor', () => {
   it('calls 2fa verify and sets session', async () => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ChevronRight, Star, Plus, Pencil, Trash2, ArrowRightLeft, Loader2, Bell, X } from 'lucide-vue-next'
+import { ChevronRight, Star, Plus, Pencil, Trash2, ArrowRightLeft, Loader2, Bell } from 'lucide-vue-next'
+import type { PriceAlert } from '~/types/api'
 import { fmtUsd, fmtPrice, fmtNum, fmtCompact, UP, DOWN } from '~/utils/format'
 import { RANGES, RANGE_LABEL } from '~/utils/coins'
 
@@ -15,8 +16,7 @@ const range = ref<'24h' | '7d' | '30d'>('7d')
 const points = ref<number[]>([])
 const chartLoading = ref(false)
 const coinLoading = ref(true)
-const showAlertModal = ref(false)
-const editingAlert = ref<import('~/types/api').PriceAlert | null>(null)
+const alertModal = ref<null | 'create' | PriceAlert>(null)
 
 const coin = computed(() => market.bySlug(slug.value))
 const watched = computed(() => watchlist.isWatched(slug.value))
@@ -53,7 +53,8 @@ async function loadChart() {
   try {
     const res = await market.getChart(slug.value, range.value)
     points.value = (res.points ?? []).map((p) => p.price)
-  } catch {
+  } catch (e) {
+    console.warn('[coin-detail] loadChart failed:', e)
     points.value = []
   } finally {
     chartLoading.value = false
@@ -196,7 +197,7 @@ onMounted(async () => {
                   <span class="font-semibold tabular-nums">{{ fmtPrice(a.target_price) }}</span>
                 </span>
                 <div class="flex items-center gap-0.5">
-                  <button class="rounded p-0.5 text-muted-foreground hover:text-foreground" @click="editingAlert = a">
+                  <button class="rounded p-0.5 text-muted-foreground hover:text-foreground" @click="alertModal = a">
                     <Pencil class="h-3.5 w-3.5" />
                   </button>
                   <button class="rounded p-0.5 text-muted-foreground hover:text-red-500" @click="deleteAlert(a.id)">
@@ -207,11 +208,11 @@ onMounted(async () => {
             </div>
             <button
               class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="alertStore.activeCount >= 10"
-              @click="showAlertModal = true"
+              :disabled="alertStore.atLimit"
+              @click="alertModal = 'create'"
             >
               <Plus class="h-3.5 w-3.5" />
-              {{ alertStore.activeCount >= 10 ? '10/10 limit reached' : 'Set price alert' }}
+              {{ alertStore.atLimit ? '10/10 limit reached' : 'Set price alert' }}
             </button>
           </div>
 
@@ -245,20 +246,14 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- create alert modal -->
+    <!-- create / edit alert modal -->
     <AlertModal
-      v-if="showAlertModal && coin"
-      :coin-slug="slug"
-      :coin-name="coin.name"
+      v-if="alertModal !== null && coin"
+      :alert="alertModal !== 'create' ? alertModal : undefined"
+      :coin-slug="alertModal === 'create' ? slug : undefined"
+      :coin-name="alertModal === 'create' ? coin.name : undefined"
       :current-price="coin.current_price"
-      @close="showAlertModal = false"
-    />
-    <!-- edit alert modal -->
-    <AlertModal
-      v-if="editingAlert"
-      :alert="editingAlert"
-      :current-price="coin?.current_price"
-      @close="editingAlert = null"
+      @close="alertModal = null"
     />
   </div>
 </template>

@@ -31,6 +31,7 @@ export const useAlertStore = defineStore('alert', {
     active: (s): PriceAlert[] => s.items.filter((a) => !a.triggered),
     triggered: (s): PriceAlert[] => s.items.filter((a) => a.triggered),
     activeCount: (s): number => s.items.filter((a) => !a.triggered).length,
+    atLimit: (s): boolean => s.items.filter((a) => !a.triggered).length >= 10,
     hasActiveAlertFor: (s) => (slug: string): boolean =>
       s.items.some((a) => a.coin_slug === slug && !a.triggered),
     activeAlertsFor: (s) => (slug: string): PriceAlert[] =>

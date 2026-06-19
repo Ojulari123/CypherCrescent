@@ -194,7 +194,7 @@ function onBackdrop() { emit('close') }
           <!-- limit hint (only shown when creating) -->
           <p v-if="!isEdit" class="text-xs text-muted-foreground">
             You can have up to 10 active alerts. Triggered alerts don't count.
-            <span v-if="alertStore.activeCount >= 10" class="font-semibold text-red-500"> Limit reached.</span>
+            <span v-if="alertStore.atLimit" class="font-semibold text-red-500"> Limit reached.</span>
             <span v-else> ({{ 10 - alertStore.activeCount }} remaining)</span>
           </p>
         </div>
@@ -203,7 +203,7 @@ function onBackdrop() { emit('close') }
         <div class="border-t border-border px-5 py-4">
           <button
             class="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-            :disabled="!canSubmit || alertStore.creating || (!isEdit && alertStore.activeCount >= 10)"
+            :disabled="!canSubmit || alertStore.creating || (!isEdit && alertStore.atLimit)"
             @click="submit"
           >
             <span v-if="alertStore.creating" class="inline-flex items-center gap-2"><Loader2 class="h-4 w-4 animate-spin" /> {{ isEdit ? 'Saving…' : 'Setting alert…' }}</span>
