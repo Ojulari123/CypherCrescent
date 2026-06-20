@@ -122,7 +122,7 @@ Create a `.env` file inside `Backend/`
 | `ACCESS_TOKEN_EXPIRE_MINUTES`| `60` | Access-token lifetime (minutes) |
 | `REFRESH_TOKEN_EXPIRE_DAYS`| `30` | Refresh-token lifetime (days) |
 | `RESEND_API_KEY` | — | Resend API key for transactional email |
-| `EMAIL_FROM` | `CypherCrescent <onboarding@resend.dev>` | From-address for outgoing email |
+| `EMAIL_FROM` | `CypherCrescent <onboarding@resend.dev>` | From-address for outgoing email. See note below. |
 | `EMAIL_VERIFY_EXPIRE_MINUTES` |`60` | Email-verification token lifetime |
 | `PASSWORD_RESET_EXPIRE_MINUTES` | `60` | Password-reset token lifetime |
 | `OTP_EXPIRE_MINUTES` | `10` | Email 2FA / verification-code lifetime |
@@ -135,6 +135,12 @@ Create a `.env` file inside `Backend/`
 | `SEARCH_CACHE_TTL` | `600` | Cache TTL (s) for search results |
 | `CHART_CACHE_TTL` | `300` | Cache TTL (s) for historical charts |
 | `FRONTEND_URL` | `http://localhost:3000` | Frontend origin |
+
+> **Email delivery note — `EMAIL_FROM` and the Resend shared domain**
+> The default `onboarding@resend.dev` sender is Resend's shared testing address. Resend restricts it: **emails sent from this address are only delivered to the email you used to sign up for Resend**, not to arbitrary recipients. This means that in the current deployment, all transactional emails (verification, password reset, 2FA codes, price alerts) are delivered exclusively to the Resend account owner's inbox — not to other registered users.
+
+**If you want to see the email logs (sent items, delivery status, any errors), im open to sharing screenshots of the log**
+
 
 Example `.env`:
 
