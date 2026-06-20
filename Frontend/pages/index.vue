@@ -154,10 +154,10 @@ onMounted(refresh)
           </button>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[720px] text-sm">
+          <table class="w-full min-w-[540px] lg:min-w-[720px] text-sm">
             <thead>
               <tr class="border-y border-border text-left text-xs text-muted-foreground">
-                <th class="px-5 py-2.5">Asset</th>
+                <th class="px-3 py-2.5 lg:px-5">Asset</th>
                 <th class="px-3 py-2.5 text-right">Price</th>
                 <th class="px-3 py-2.5 text-right">Holdings</th>
                 <th class="hidden px-3 py-2.5 text-right lg:table-cell">Buy price</th>
@@ -177,16 +177,16 @@ onMounted(refresh)
                     <ChevronsUpDown v-else class="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/s:opacity-50" />
                   </button>
                 </th>
-                <th class="px-5 py-2.5"></th>
+                <th class="px-3 py-2.5 lg:px-5"></th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="h in sortedHoldings" :key="h.id" class="group border-b border-border/60 transition-colors last:border-0 hover:bg-muted/50">
-                <td class="px-5 py-3">
-                  <NuxtLink :to="`/coins/${h.coin_slug}`" class="flex items-center gap-3">
-                    <CoinIcon :slug="h.coin_slug" :symbol="h.symbol" :image="h.image" :size="30" />
-                    <span class="leading-tight">
-                      <span class="block font-semibold group-hover:text-primary">{{ h.name || h.coin_slug }}</span>
+                <td class="px-3 py-3 lg:px-5">
+                  <NuxtLink :to="`/coins/${h.coin_slug}`" class="flex min-w-0 items-center gap-2">
+                    <CoinIcon :slug="h.coin_slug" :symbol="h.symbol" :image="h.image" :size="30" class="shrink-0" />
+                    <span class="min-w-0 leading-tight">
+                      <span class="truncate font-semibold group-hover:text-primary">{{ h.name || h.coin_slug }}</span>
                       <span class="block text-xs uppercase text-muted-foreground">{{ h.symbol }}</span>
                     </span>
                   </NuxtLink>
@@ -202,7 +202,7 @@ onMounted(refresh)
                   <ChangeBadge :value="h.pl_percent" class="justify-end" />
                   <span v-if="h.pl != null" class="block text-xs tabular-nums" :style="{ color: h.pl >= 0 ? UP : DOWN }">{{ h.pl >= 0 ? '+' : '' }}{{ fmtUsd(h.pl) }}</span>
                 </td>
-                <td class="px-5 py-3">
+                <td class="px-3 py-3 lg:px-5">
                   <div class="flex justify-end gap-1">
                     <button class="rounded-lg bg-muted p-1.5 transition-colors hover:bg-primary hover:text-primary-foreground" aria-label="Edit" @click="ui.openEditHolding(h)"><Pencil class="h-3.5 w-3.5" /></button>
                     <button class="rounded-lg bg-muted p-1.5 transition-colors hover:bg-red-500 hover:text-white" aria-label="Delete" @click="ui.askDeleteHolding(h.id)"><Trash2 class="h-3.5 w-3.5" /></button>

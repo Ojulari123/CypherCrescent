@@ -112,13 +112,15 @@ async function toggleWatch(slug: string) {
             </td>
             <td class="px-2 py-3 text-muted-foreground tabular-nums">{{ row.market_cap_rank ?? i + 1 }}</td>
             <td class="px-3 py-3">
-              <NuxtLink :to="`/coins/${row.id}`" class="flex items-center gap-3">
-                <CoinIcon :slug="row.id" :symbol="row.symbol" :image="row.image" :size="30" />
-                <span class="leading-tight">
-                  <span class="block font-semibold group-hover:text-primary">{{ row.name || row.id }}</span>
+              <NuxtLink :to="`/coins/${row.id}`" class="flex min-w-0 items-center gap-2">
+                <CoinIcon :slug="row.id" :symbol="row.symbol" :image="row.image" :size="30" class="shrink-0" />
+                <span class="min-w-0 leading-tight">
+                  <span class="flex items-center gap-1.5">
+                    <span class="truncate font-semibold group-hover:text-primary">{{ row.name || row.id }}</span>
+                    <span v-if="portfolio.heldSlugs.includes(row.id)" class="shrink-0 rounded bg-emerald-500/15 px-1 text-[10px] font-semibold text-emerald-600">HELD</span>
+                  </span>
                   <span class="block text-xs uppercase text-muted-foreground">{{ row.symbol }}</span>
                 </span>
-                <span v-if="portfolio.heldSlugs.includes(row.id)" class="rounded bg-emerald-500/15 px-1 text-[10px] font-semibold text-emerald-600">HELD</span>
               </NuxtLink>
             </td>
             <td v-for="col in numCols" :key="col.key" class="px-3 py-3 text-right tabular-nums" :class="[col.kind === 'price' ? 'font-semibold' : '', col.mobileHide ? 'hidden sm:table-cell' : '']">

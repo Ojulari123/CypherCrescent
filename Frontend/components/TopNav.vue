@@ -9,6 +9,7 @@ const watchlist = useWatchlistStore()
 const alerts = useAlertStore()
 
 const menuOpen = ref(false)
+const searchFocused = ref(false)
 
 const nav = [
   { to: '/', label: 'Dashboard' },
@@ -30,6 +31,11 @@ async function logout() {
   menuOpen.value = false
   await auth.logout()
   router.push('/login')
+}
+
+function cancelSearch() {
+  searchFocused.value = false
+  ui.setQuery('')
 }
 </script>
 
@@ -120,22 +126,33 @@ async function logout() {
 
     <!-- mobile nav + search -->
     <div class="flex items-center gap-3 border-t border-border px-4 py-2 md:hidden">
-      <NuxtLink
-        v-for="item in nav"
-        :key="item.to"
-        :to="item.to"
-        class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
-        :class="isActive(item.to) ? 'bg-primary/10 text-primary' : 'text-muted-foreground'"
-      >
-        {{ item.label }}
-        <span v-if="item.to === '/alerts' && alerts.activeCount" class="rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
-          {{ alerts.activeCount }}
-        </span>
-      </NuxtLink>
-      <div class="relative ml-auto min-w-0 flex-1 sm:max-w-[220px]">
+      <template v-if="!searchFocused">
+        <NuxtLink
+          v-for="item in nav"
+          :key="item.to"
+          :to="item.to"
+          class="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
+          :class="isActive(item.to) ? 'bg-primary/10 text-primary' : 'text-muted-foreground'"
+        >
+          {{ item.label }}
+          <span v-if="item.to === '/alerts' && alerts.activeCount" class="rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
+            {{ alerts.activeCount }}
+          </span>
+        </NuxtLink>
+      </template>
+      <div class="relative min-w-0 flex-1" :class="searchFocused ? 'w-full' : 'ml-auto sm:max-w-[220px]'">
         <Search class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input v-model="query" placeholder="Search by name or symbol" class="w-full rounded-lg border border-border bg-card py-1.5 pl-8 pr-2 text-xs outline-none focus:ring-2 focus:ring-primary/20" />
+        <input
+          v-model="query"
+          placeholder="Search by name or symbol"
+          class="w-full rounded-lg border border-border bg-card py-1.5 pl-8 pr-2 text-[16px] leading-tight outline-none focus:ring-2 focus:ring-primary/20 sm:text-xs"
+          @focus="searchFocused = true"
+          @blur="searchFocused = false"
+        />
       </div>
+      <button v-if="searchFocused" class="shrink-0 text-xs font-medium text-primary" @mousedown.prevent="cancelSearch">
+        Cancel
+      </button>
     </div>
   </header>
 </template>
